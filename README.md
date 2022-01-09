@@ -54,6 +54,8 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
 ```python
 '\x03\x03\x03\x04'
 ```
+### GPG Signing (optional)
+RSCF can be signed with GPG for tampering protection. Files shall be using the .sig extension.
 
 ## Renderer
 A 'renderer' is basically a profile which stores information how to compress a RAW file to a target archive type. It typically includes information on:
