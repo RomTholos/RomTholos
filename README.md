@@ -57,6 +57,18 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
 ### GPG Signing (optional)
 RSCF can be signed with GPG for tampering protection. Files shall be using the .sig extension.
 
+### Sample Folder Layout
+```
+romRoot/
+   |
+   |--- game_archive_a.7z         # Compressed game files
+   |--- game_archive_a.7z.rscf    # File metadata and signatures
+   |--- game_archive_a.7z.sig     # Optional GPG signature for rscf tampering protection
+   |--- game_archive_b.7z
+   |--- game_archive_b.7z.sig
+   |--- ...
+```
+
 ## Renderer
 A 'renderer' is basically a profile which stores information how to compress a RAW file to a target archive type. It typically includes information on:
   1. How to pack a single file
