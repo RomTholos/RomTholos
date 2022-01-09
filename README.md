@@ -7,18 +7,18 @@ Basic Proof of concept code will follow in the coming days after some initial cl
 The ROM manager consist of various utilities that can be used together or independet. Unlike other tools, the main focus is to allow easy integration of various optimized external compression and hashing tools by the end user. It also allows to abstract the storage format by introducing standardised sidecar files and still offer direct comparison to standard DAT files.
 
 ## The RSCF sidecar file
-The RSCF file includes all relevant information to allow utilities to directly compare an archive to a DAT. It essentially includes all ROM information also typically found in a DAT file for a single game. The main information is stored in a standard BSON[^bsonspec] data structure specified by the MongoDB project, wrapped in a propriatary envelop, including a hash of the data structure for data integrity verification.
+The RSCF file includes all relevant information to allow utilities to directly compare an archive to a DAT without the need for de-compression. It essentially includes all ROM information also typically found in a DAT file for a single game. The main information is stored in a standard BSON[^bsonspec] data structure specified by the MongoDB project, wrapped in a propriatary envelop, including a hash of the data structure for data integrity verification.
 
 The typical use case is to compress a certain RAW file format like <.iso> or <.bin/.cue> and compress them with 7zip (7z), chdman (CHD), dolphin (RVZ) or other tools to spare some space and still allow the files to be consumed by emulators. The main problem is, that upstream DAT files store and list the file metadata only for the orignal RAW file format. This approach is correct, since folks will develop new advanced file formats to spare space in the future. Most of these fileformats do unfortunatly not store the hashes of the original RAW files for comparison at a later date against an upstream DAT. Therefore we first calculate the hash of the original RAW file, compress the files with a profile based 'renderer' and then create a sidecar file for verification without the presence of the original RAW files. The tool only will and shall support 'loosless' fileformats, who allow a back-conversion to RAW.
 
 ### File Spec
-The Header, Payload and Footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 35 kbytes, depending on the file count.
+The Header, BSON Payload and Footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 35 kbytes, depending on the file count.
 
 #### Header
 ```python
 '\x01' + <bson_payload_sha-256> + '\x1e\x02\x02\x02'
 ```
-#### Payload
+#### BSON Payload
 ```python
 {
     'version': 0,               # File format version
