@@ -10,7 +10,7 @@ fileRoot = ''
 cacheRoot = 'cache/'
 
 option_scanmode = 'fast'
-option_inode = False
+option_inode = True
 
 option_hmac_key = 'password'
 option_hmac = True
