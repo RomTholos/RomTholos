@@ -7,7 +7,7 @@ import argparse, json
 
 # Parameters
 fileRoot = ''
-cacheRoot = 'cache/'
+cacheRoot = ''
 
 option_scanmode = 'fast'
 option_inode = True
@@ -25,6 +25,10 @@ parser.add_argument('action',
 parser.add_argument('-r', '--rootdir',
     required = True,
     help = 'File root. Process recursivly from here.')
+parser.add_argument('-c', '--cachedir',
+    required = False,
+    default = "cache/",
+    help = 'Scratchpad area. All decompressed files will be written here.')
 args = parser.parse_args()
 
 # Verify arguments
@@ -36,6 +40,11 @@ else:
         fileRoot = args.rootdir
     else:
         sys.exit("Specfiy valid directory")
+
+if os.path.isdir(args.cachedir) and args.cachedir != "":
+    cacheRoot = args.cachedir
+else:
+    sys.exit("Specfiy valid directory")
 
 ### Data Container
 rscfTemplate = {
