@@ -1,13 +1,18 @@
 # RomTholos
 Proof of Concept ROM manager
 
+Warning: Ultra early alpha! Do not use it!
+
 Basic Proof of concept code will follow in the coming days after some initial cleanup's.
 
 ## Concept
 The ROM manager consist of various utilities that can be used together or independet. Unlike other tools, the main focus is to allow easy integration of various optimized external compression and hashing tools by the end user. It also allows to abstract the storage format by introducing standardised sidecar files and still offer direct comparison to standard DAT files.
 
+### Other uses outside of ROM management
+Some of the concepts have also proved useful for other topics like basic file and photo deduplication.
+
 ## The RSCF sidecar file
-The RSCF file includes all relevant information to allow utilities to directly compare an archive to a DAT without the need for de-compression. It essentially includes all ROM information also typically found in a DAT file for a single game. The main information is stored in a standard BSON[^bsonspec] data structure specified by the MongoDB project, wrapped in a propriatary envelop, including a hash of the data structure for data integrity verification.
+The RSCF file includes all relevant information to allow utilities to directly compare an archive to a DAT without the need for de-compression. It essentially includes all ROM information also typically found in a DAT file for a single game. The main information is stored in a standard BSON[^bsonspec] data structure specified by the MongoDB project, wrapped in a propriatary envelop, including a hash of the data structure for data integrity verification and optional signature for tampering protection. The RSCF file is stored alongside the orignal file, or if configured, in a separate directory structure.
 
 The typical use case is to compress a certain RAW file format like <.iso> or <.bin/.cue> and compress them with 7zip (7z), chdman (CHD), dolphin (RVZ) or other tools to spare some space and still allow the files to be consumed by emulators. The main problem is, that upstream DAT files store and list the file metadata only for the orignal RAW file format. This approach is correct, since folks will develop new advanced file formats to spare space in the future. Most of these fileformats do unfortunatly not store the hashes of the original RAW files for comparison at a later date against an upstream DAT. Therefore we first calculate the hash of the original RAW file, compress the files with a profile based 'renderer' and then create a sidecar file for verification without the presence of the original RAW files. The tool only will and shall support 'loosless' fileformats, who allow a back-conversion to RAW.
 
@@ -21,22 +26,24 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
 #### BSON Payload
 ```python
 {
-    'version': 0,               # File format version
-    'file_blake3': 0,           # Blake3 hash of container
-    'file_mtime': 0,            # Modification time of container
-    'file_size': 0,             # File size of container
-    'files': {
-      <romIndex>: {                 # Index starts always with 0      # Used by:
-        'path':   <romfilepath>,    # Relative path inside archive    # DAT, archive.org, SMDB
-        'size':   <romfilesize>,    # File size                       # DAT, archive.org
-        'mtime':  <romfilemtime>,   # Modification date               # archive.org, DOS games
-        'crc32':  <romfilecrc32>,   # CRC32 hash                      # DAT, archive.org 
-        'md5':    <romfilemd5>,     # MD5 hash                        # DAT, archive.org
-        'sha1':   <romfilesha1>,    # SHA-1 hash                      # DAT, archive.org
-        'sha256': <romfilesha256>,  # SHA-256 hash                    # SMDB compatibility
-        'blake3': <romfileblake3>   # Blake3 hash                     # For speed and future use
+    'version': 0,                # File format version									# mandatory
+    'file_blake3': 0,            # Blake3 hash of container								# mandatory
+    'file_mtime_ns': 0,          # Modification time of container						# mandatory
+	'file_ctime_ns': 0,			 # Creation time (Platform dependent					# optional
+    'file_size': 0,              # File size of container								# mandatory
+	'file_inode': 0,			 # File inode number or index on supported filesystems	# optional
+    'files': {					 # Only needed for archives								# optional
+      <fileIndex>: {             # Index starts always with 0      # Used by:
+        'path':   <filepath>,    # Relative path inside archive    # DAT, archive.org, SMDB
+        'size':   <filesize>,    # File size                       # DAT, archive.org
+        'mtime':  <filemtime>,   # Modification date               # archive.org, DOS games
+        'crc32':  <filecrc32>,   # CRC32 hash                      # DAT, archive.org 
+        'md5':    <filemd5>,     # MD5 hash                        # DAT, archive.org
+        'sha1':   <filesha1>,    # SHA-1 hash                      # DAT, archive.org
+        'sha256': <filesha256>,  # SHA-256 hash                    # SMDB compatibility
+        'blake3': <fileblake3>   # Blake3 hash                     # For speed and future use
       },
-      <romIndex+1>: {
+      <fileIndex+1>: {
         'path':   <romfilepath>, 
         'size':   <romfilesize>,    
         'mtime':  <romfilemtime>,
