@@ -20,7 +20,7 @@ rscf_header_version = '\x00\x00' # Container Version 0
 parser = argparse.ArgumentParser(
     description = 'RSCF Updater')
 parser.add_argument('action',
-    choices = ['update', 'verify'],
+    choices = ['update', 'verify', 'clean'],
     help = 'Select what action to perform.')
 parser.add_argument('-r', '--rootdir',
     required = True,
@@ -70,6 +70,16 @@ def getFiles(path):
             fileList.append(filename)
     
     return fileList
+    
+def cleanRSCF(path):
+    fileList = []
+    
+    # Process every file in root_dir
+    for filename in glob.iglob(path + '**/*.rscf', recursive=True):
+        if os.path.isfile(filename):
+            if not os.path.isfile(filename[:-5]):
+                print("Original file no longer available. Delete RSCF: " + filename)
+                os.remove(filename)
 
 # 2. Check if rscf file is already present
 def checkRscfExists(path):
@@ -215,73 +225,81 @@ def processFile(file):
     for rom in romList:
         os.remove(rom)
 
-fileList = getFiles(fileRoot)
-verified = 0
-broken = 0
-for file in fileList:
-    e = checkRscfExists(file)
-    #print("RSCF for file " + file + ' exists: ' + str(e))
-    
-    # Create new RSCF file
-    if e is False:
-        processFile(file)
-            
-    # Verify top level if RSCF file exists
-    elif e is True:
-        rscf = readRscf(file+'.rscf')
-        
-        verificationMode = option_scanmode
-        rscfIntegrity = True
-        rscfRewrite = False
-        
-        print('Processing file: ' + file)
-        
-        if verificationMode == 'fast':
-            romStat = os.stat(file)
-            if not rscf['file_mtime_ns'] == romStat.st_mtime_ns:
-                print('mtime not correct, fallback to hash verification.')
-                verificationMode = 'hash'
-                rscfIntegrity = False
-                rscfRewrite = True
-                
-            if not rscf['file_ctime_ns'] == romStat.st_ctime_ns:
-                print('ctime not correct, fallback to hash verification.')
-                verificationMode = 'hash'
-                rscfIntegrity = False
-                rscfRewrite = True
-                
-            if option_inode is True:
-                if not rscf['file_inode'] == romStat.st_ino:
-                    print('inode not correct, fallback to hash verification.')
-                    print('Warning: Inode verification does not work on all filesystems. Disable if unshure.')
-                    verificationMode = 'hash'
-                    rscfIntegrity = False
-                    rscfRewrite = True
-                
-            if not rscf['file_size'] == romStat.st_size:
-                print('size not correct, fallback to hash verification.')
-                verificationMode = 'hash'
-                rscfIntegrity = False
-                rscfRewrite = True
 
-        if verificationMode == 'hash':        
-            if not b3sum.getBlake3Sum(file)[1] == rscf['file_blake3']:
-                print('Hash does not match!')
-                rscfIntegrity = False
-                rscfRewrite = False
-            else:
-                rscfIntegrity = True
+if args.action == 'clean':
+    if os.path.isdir(fileRoot):
+        cleanRSCF(fileRoot)
         
-        if rscfIntegrity == True:
-                verified += 1
-        else:
-            broken += 1
-            print('File does not match: ' + file)
+if args.action == 'update':
+    if os.path.isdir(args.rootdir):
+               
+        fileList = getFiles(fileRoot)
+        verified = 0
+        broken = 0
+        for file in fileList:
+            e = checkRscfExists(file)
+            #print("RSCF for file " + file + ' exists: ' + str(e))
             
-        if rscfRewrite == True:
-            rscfUpdateHeader(file, rscf)
-            print('RSCF header rewrittten for file: ' + file)
-            
-print('From ' + str(len(fileList)) + ' files,')
-print('\t' + str(verified) + " are OK")
-print('\t' + str(broken) + " are BAD")
+            # Create new RSCF file
+            if e is False:
+                processFile(file)
+                    
+            # Verify top level if RSCF file exists
+            elif e is True:
+                rscf = readRscf(file+'.rscf')
+                
+                verificationMode = option_scanmode
+                rscfIntegrity = True
+                rscfRewrite = False
+                
+                print('Processing file: ' + file)
+                
+                if verificationMode == 'fast':
+                    romStat = os.stat(file)
+                    if not rscf['file_mtime_ns'] == romStat.st_mtime_ns:
+                        print('mtime not correct, fallback to hash verification.')
+                        verificationMode = 'hash'
+                        rscfIntegrity = False
+                        rscfRewrite = True
+                        
+                    if not rscf['file_ctime_ns'] == romStat.st_ctime_ns:
+                        print('ctime not correct, fallback to hash verification.')
+                        verificationMode = 'hash'
+                        rscfIntegrity = False
+                        rscfRewrite = True
+                        
+                    if option_inode is True:
+                        if not rscf['file_inode'] == romStat.st_ino:
+                            print('inode not correct, fallback to hash verification.')
+                            print('Warning: Inode verification does not work on all filesystems. Disable if unshure.')
+                            verificationMode = 'hash'
+                            rscfIntegrity = False
+                            rscfRewrite = True
+                        
+                    if not rscf['file_size'] == romStat.st_size:
+                        print('size not correct, fallback to hash verification.')
+                        verificationMode = 'hash'
+                        rscfIntegrity = False
+                        rscfRewrite = True
+
+                if verificationMode == 'hash':        
+                    if not b3sum.getBlake3Sum(file)[1] == rscf['file_blake3']:
+                        print('Hash does not match!')
+                        rscfIntegrity = False
+                        rscfRewrite = False
+                    else:
+                        rscfIntegrity = True
+                
+                if rscfIntegrity == True:
+                        verified += 1
+                else:
+                    broken += 1
+                    print('File does not match: ' + file)
+                    
+                if rscfRewrite == True:
+                    rscfUpdateHeader(file, rscf)
+                    print('RSCF header rewrittten for file: ' + file)
+                    
+        print('From ' + str(len(fileList)) + ' files,')
+        print('\t' + str(verified) + " are OK")
+        print('\t' + str(broken) + " are BAD")
