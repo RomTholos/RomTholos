@@ -93,7 +93,7 @@ def writeRscf(rscfData, path):
     with open(path+'.rscf', 'wb') as f:
         bson_data = bson.dumps(rscfData)
         bson_digest = hashlib.sha256(bson_data).hexdigest()
-        bson_header = '\x01' + rscf_header_version + '\x1d' + bson_digest + '\x1e\x02\x02\x02'
+        bson_header = 'RSCF\x01' + rscf_header_version + '\x1d' + bson_digest + '\x1e\x02\x02\x02'
         bson_footer = '\x03\x03\x03\x04'
         f.write(bson_header.encode('ascii'))
         f.write(bson_data)
@@ -103,16 +103,20 @@ def readRscf(path):
     with open(path, 'rb') as f:
         s = f.read() #unsafe
         sp = s.split(b'\x1e\x02\x02\x02')
-        bson_digest_r = sp[0][4:]
+        magic = sp[0][0:4]
+        bson_digest_r = sp[0][8:]
         bson_data_r = sp[1][:-4]
         rscf_data = bson.loads(bson_data_r)
     
         bson_digest = hashlib.sha256(bson_data_r).hexdigest()
     
-        if str.encode(bson_digest) == bson_digest_r:
+        if str.encode(bson_digest) == bson_digest_r and magic == 'RSCF':
             #print("Digest OK")
             #print(rscf_data)
-            return rscf_data   
+            return rscf_data
+            
+        else:
+            return 'update-header'
 
 def compressFile(filePath, fileName, method="py7zr"):
     # Allow various compression methods to be implemented.
@@ -251,11 +255,15 @@ if args.action == 'update':
                     
             # Verify top level if RSCF file exists
             elif e is True:
-                rscf = readRscf(file+'.rscf')
-                
                 verificationMode = option_scanmode
                 rscfIntegrity = True
                 rscfRewrite = False
+                
+                rscf = readRscf(file+'.rscf')
+                
+                if rscf == 'update-header':
+                    rscfRewrite = True
+                    verificationMode = 'skip'
                 
                 print('Processing file: ' + file)
                 
