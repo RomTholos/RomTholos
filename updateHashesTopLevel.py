@@ -199,6 +199,10 @@ def processFile(file):
     rscf['file_inode'] = romStat.st_ino
     rscf['file_size'] = romStat.st_size
     
+    # Check if cache is not empty
+    if os.listdir(cacheRoot):
+        sys.exit("Assigned cache contains files. Abort.")
+    
     # Decompress ROMs into the cache
     decompressAll(file,"none")
     
@@ -234,6 +238,9 @@ def processFile(file):
     for rom in romList:
         os.remove(rom)
 
+# Check if cache is not empty
+if os.listdir(cacheRoot):
+    sys.exit("Assigned cache contains files. Abort.")
 
 if args.action == 'clean':
     if os.path.isdir(fileRoot):
