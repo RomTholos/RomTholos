@@ -116,7 +116,7 @@ def readRscf(path):
             return rscf_data
             
         else:
-            return 'update-header'
+            return 'update'
 
 def compressFile(filePath, fileName, method="py7zr"):
     # Allow various compression methods to be implemented.
@@ -261,9 +261,9 @@ if args.action == 'update':
                 
                 rscf = readRscf(file+'.rscf')
                 
-                if rscf == 'update-header':
-                    rscfRewrite = True
-                    verificationMode = 'skip'
+                if rscf == 'update':
+                    processFile(file)
+                    rscf = readRscf(file+'.rscf')
                 
                 print('Processing file: ' + file)
                 
