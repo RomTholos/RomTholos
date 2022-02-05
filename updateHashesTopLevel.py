@@ -103,20 +103,21 @@ def readRscf(path):
     with open(path, 'rb') as f:
         s = f.read() #unsafe
         sp = s.split(b'\x1e\x02\x02\x02')
-        magic = sp[0][0:4]
-        bson_digest_r = sp[0][8:]
-        bson_data_r = sp[1][:-4]
-        rscf_data = bson.loads(bson_data_r)
-    
-        bson_digest = hashlib.sha256(bson_data_r).hexdigest()
-    
-        if str.encode(bson_digest) == bson_digest_r and magic == 'RSCF':
-            #print("Digest OK")
-            #print(rscf_data)
-            return rscf_data
+        print(sp[0][8:])
+        if sp[0][0:5] == b'RSCF\x01':
+            bson_digest_r = sp[0][8:]
+            bson_data_r = sp[1][:-4]
+            rscf_data = bson.loads(bson_data_r)
+        
+            bson_digest = hashlib.sha256(bson_data_r).hexdigest()
+        
+            if str.encode(bson_digest) == bson_digest_r:
+                #print("Digest OK")
+                #print(rscf_data)
+                return rscf_data
             
         else:
-            return 'update'
+            return False
 
 def compressFile(filePath, fileName, method="py7zr"):
     # Allow various compression methods to be implemented.
@@ -261,9 +262,9 @@ if args.action == 'update':
                 
                 rscf = readRscf(file+'.rscf')
                 
-                if rscf == 'update':
+                if rscf == False:
                     processFile(file)
-                    rscf = readRscf(file+'.rscf')
+                    verificationMode = None
                 
                 print('Processing file: ' + file)
                 
