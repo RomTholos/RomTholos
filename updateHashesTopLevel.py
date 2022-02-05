@@ -36,7 +36,7 @@ parser.add_argument('-c', '--cachedir',
 parser.add_argument('-m', '--metadir',
     required = False,
     default = 'sidecar',
-    help = 'Placing RSCF, PAR2 archives and GPG signatures out of three in this directory.'
+    help = 'Placing RSCF, PAR2 archives and GPG signatures out of three in this directory.')
 args = parser.parse_args()
 
 # Verify arguments
