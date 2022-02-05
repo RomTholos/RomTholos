@@ -9,6 +9,9 @@ import msgpack
 fileRoot = ''
 cacheRoot = ''
 cacheRootBig = ''
+metaRoot = ''
+
+option_sidecar = True
 
 option_scanmode = 'fast'
 option_inode = True
@@ -30,6 +33,10 @@ parser.add_argument('-c', '--cachedir',
     required = False,
     default = "cache/",
     help = 'Scratchpad area. All decompressed files will be written here.')
+parser.add_argument('-m', '--metadir',
+    required = False,
+    default = 'sidecar',
+    help = 'Placing RSCF, PAR2 archives and GPG signatures out of three in this directory.'
 args = parser.parse_args()
 
 # Verify arguments
@@ -46,6 +53,13 @@ if os.path.isdir(args.cachedir) and args.cachedir != "":
     cacheRoot = args.cachedir
 else:
     sys.exit("Specfiy valid directory")
+    
+if os.path.isdir(args.metadir) and args.metadir != 'sidecar':
+    metaRoot = args.metadir
+    option_sidecar = False
+else:
+    metaRoot = fileRoot
+    option_sidecar = True
 
 ### Data Container
 rscfTemplate = {
@@ -63,7 +77,7 @@ def getFiles(path):
     fileList = []
     
     # Process every file in root_dir
-    for filename in glob.iglob(path + '**/*.*', recursive=True):
+    for filename in glob.iglob(os.path.join(path, '**/*.*'), recursive=True):
         if os.path.isfile(filename) and filename[-5:] != ".rscf" and filename[-5:] != ".par2" and filename[-5:] != ".sig" :
             fileList.append(filename)
     
@@ -265,7 +279,7 @@ if args.action == 'par2':
             
             o = par2.verify_par2(file)
             
-            print(f'Par2 Verified? {str(o)}')
+            print(f'Par2 verified {str(o)} for file {file}')
         
 if args.action == 'update':
     if os.path.isdir(args.rootdir):
