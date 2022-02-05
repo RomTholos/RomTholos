@@ -2,12 +2,13 @@ import glob, os, sys
 import bson
 import hashlib, zlib, hmac
 import py7zr
-from utils import b3sum
+from utils import b3sum, fs
 import argparse, json
 
 # Parameters
 fileRoot = ''
 cacheRoot = ''
+cacheRootBig = ''
 
 option_scanmode = 'fast'
 option_inode = True
@@ -57,18 +58,6 @@ rscfTemplate = {
     'files': {},
     'renderer': 'main.7z-lzma' # none, main.7z-lzma , main.7z-zstd, ...
 }
-
-# 1. Get a list of all files in current directory
-def getAllFiles(path):
-    fileList = []
-    
-    # Process every file in root_dir
-    for filename in glob.iglob(os.path.join(path, '**/*.*'), recursive=True):
-        if os.path.isfile(filename):
-            fileList.append(filename)
-            print(filename)
-    
-    return fileList
     
 def getFiles(path):
     fileList = []
