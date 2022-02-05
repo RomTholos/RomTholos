@@ -64,7 +64,7 @@ def getFiles(path):
     
     # Process every file in root_dir
     for filename in glob.iglob(path + '**/*.*', recursive=True):
-        if os.path.isfile(filename) and filename[-5:] != ".rscf":
+        if os.path.isfile(filename) and filename[-5:] != ".rscf" and filename[-5:] != ".par2" and filename[-5:] != ".sig" :
             fileList.append(filename)
     
     return fileList
