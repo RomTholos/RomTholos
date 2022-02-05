@@ -1,9 +1,9 @@
 import glob, os, sys
-import bson
 import hashlib, zlib, hmac
 import py7zr
 from utils import b3sum, fs
 import argparse, json
+import msgpack 
 
 # Parameters
 fileRoot = ''
@@ -15,7 +15,7 @@ option_inode = True
 
 option_hmac_key = 'password'
 option_hmac = True
-rscf_header_version = '\x00\x00' # Container Version 0
+rscf_header_version = '\x00\x00\x00\x01' # Container Version 1
 
 ### Parsing command line arguments
 parser = argparse.ArgumentParser(
@@ -51,8 +51,8 @@ else:
 rscfTemplate = {
     'version': 0,
     'file_blake3': 0,
-    'file_mtime_ns': 0,
-    'file_ctime_ns': 0,
+    'file_mtime': 0,
+    'file_ctime': 0,
     'file_size': 0,
     'file_inode': 0,
     'files': {},
@@ -91,30 +91,31 @@ def checkRscfExists(path):
     
 def writeRscf(rscfData, path):
     with open(path+'.rscf', 'wb') as f:
-        bson_data = bson.dumps(rscfData)
-        bson_digest = hashlib.sha256(bson_data).hexdigest()
-        bson_header = 'RSCF\x01' + rscf_header_version + '\x1d' + bson_digest + '\x1e\x02\x02\x02'
-        bson_footer = '\x03\x03\x03\x04'
-        f.write(bson_header.encode('ascii'))
-        f.write(bson_data)
-        f.write(bson_footer.encode('ascii'))
+        mpack_data = msgpack.packb(rscfData, use_bin_type=True)
+        mpack_digest = hashlib.sha256(mpack_data).hexdigest()
+        rscf_header = 'RSCF\x01' + rscf_header_version + '\x1d' + mpack_digest + '\x1e\x02\x02\x02'
+        rscf_footer = '\x03\x03\x03\x04'
+        f.write(rscf_header.encode('ascii'))
+        f.write(mpack_data)
+        f.write(rscf_footer.encode('ascii'))
 
 def readRscf(path):
     with open(path, 'rb') as f:
         s = f.read() #unsafe
         sp = s.split(b'\x1e\x02\x02\x02')
-        print(sp[0][8:])
-        if sp[0][0:5] == b'RSCF\x01':
-            bson_digest_r = sp[0][8:]
-            bson_data_r = sp[1][:-4]
-            rscf_data = bson.loads(bson_data_r)
+        if sp[0][0:5] == b'RSCF\x01' and sp[0][5:9] == str.encode(rscf_header_version):
+            mpack_digest_r = sp[0][10:]
+            mpack_data_r = sp[1][:-4]
+            rscf_data = msgpack.unpackb(mpack_data_r, use_list=False, raw=False, strict_map_key=False)
         
-            bson_digest = hashlib.sha256(bson_data_r).hexdigest()
+            mpack_digest = hashlib.sha256(mpack_data_r).hexdigest()
         
-            if str.encode(bson_digest) == bson_digest_r:
+            if str.encode(mpack_digest) == mpack_digest_r:
                 #print("Digest OK")
                 #print(rscf_data)
                 return rscf_data
+            else:
+                return False
             
         else:
             return False
@@ -140,9 +141,11 @@ def decompressAll(path, fileName):
 ### Calculate all required file hashes, size and mtime from path
 # Modified from https://stackoverflow.com/questions/1742866/compute-crc-of-file-in-python
 def getROMMeta(filepath):
-
-    f_size = os.path.getsize(filepath)
-    f_mtime = os.path.getmtime(filepath)
+    f_stat = os.stat(filepath)
+    
+    f_mtime = f_stat.st_mtime_ns
+    f_ctime = f_stat.st_ctime_ns
+    f_size = f_stat.st_size
     
     h_crc32 = 0
     h_md5 = hashlib.md5()
@@ -165,7 +168,7 @@ def getROMMeta(filepath):
         h_sha1 = h_sha1.hexdigest().upper()
         h_sha256 = h_sha256.hexdigest().upper()
 
-        return [f_size, f_mtime, h_crc32, h_md5, h_sha1, h_sha256, h_blake3]
+        return [f_size, f_ctime, f_mtime, h_crc32, h_md5, h_sha1, h_sha256, h_blake3]
 
 # 2.1 If rscf file is present, verify
 
@@ -177,8 +180,8 @@ def getROMMeta(filepath):
 def rscfUpdateHeader(file, rscf):
     rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1]
     romStat = os.stat(file)
-    rscf['file_mtime_ns'] = romStat.st_mtime_ns
-    rscf['file_ctime_ns'] = romStat.st_ctime_ns
+    rscf['file_mtime'] = romStat.st_mtime_ns
+    rscf['file_ctime'] = romStat.st_ctime_ns
     rscf['file_inode'] = romStat.st_ino
     rscf['file_size'] = romStat.st_size
     
@@ -188,8 +191,8 @@ def processFile(file):
     rscf = rscfTemplate
     rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1]
     romStat = os.stat(file)
-    rscf['file_mtime_ns'] = romStat.st_mtime_ns
-    rscf['file_ctime_ns'] = romStat.st_ctime_ns
+    rscf['file_mtime'] = romStat.st_mtime_ns
+    rscf['file_ctime'] = romStat.st_ctime_ns
     rscf['file_inode'] = romStat.st_ino
     rscf['file_size'] = romStat.st_size
     
@@ -211,12 +214,13 @@ def processFile(file):
             romIndex: {
                 'path':   os.path.relpath(rom, start=cacheRoot),
                 'size':   fileMeta[0],
-                'mtime':  fileMeta[1],
-                'crc32':  fileMeta[2],
-                'md5':    fileMeta[3],
-                'sha1':   fileMeta[4],
-                'sha256': fileMeta[5],
-                'blake3': fileMeta[6]
+                'ctime':  fileMeta[1],
+                'mtime':  fileMeta[2],
+                'crc32':  fileMeta[3],
+                'md5':    fileMeta[4],
+                'sha1':   fileMeta[5],
+                'sha256': fileMeta[6],
+                'blake3': fileMeta[7]
             }       
         }
         print(meta)
@@ -270,13 +274,13 @@ if args.action == 'update':
                 
                 if verificationMode == 'fast':
                     romStat = os.stat(file)
-                    if not rscf['file_mtime_ns'] == romStat.st_mtime_ns:
+                    if not rscf['file_mtime'] == romStat.st_mtime_ns:
                         print('mtime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
-                    if not rscf['file_ctime_ns'] == romStat.st_ctime_ns:
+                    if not rscf['file_ctime'] == romStat.st_ctime_ns:
                         print('ctime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
