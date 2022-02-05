@@ -151,7 +151,7 @@ def getROMMeta(filepath):
     h_md5 = hashlib.md5()
     h_sha1 = hashlib.sha1()
     h_sha256 = hashlib.sha256()
-    h_blake3 = b3sum.getBlake3Sum(filepath)[1]
+    h_blake3 = b3sum.getBlake3Sum(filepath)[1].upper()
     
     with open(filepath, 'rb') as fh:
         while True:
@@ -178,7 +178,7 @@ def getROMMeta(filepath):
 # TODO Deep verification level with unpacking archive
 
 def rscfUpdateHeader(file, rscf):
-    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1]
+    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1].upper()
     romStat = os.stat(file)
     rscf['file_mtime'] = romStat.st_mtime_ns
     rscf['file_ctime'] = romStat.st_ctime_ns
@@ -189,7 +189,7 @@ def rscfUpdateHeader(file, rscf):
 
 def processFile(file):
     rscf = rscfTemplate
-    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1]
+    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1].upper()
     romStat = os.stat(file)
     rscf['file_mtime'] = romStat.st_mtime_ns
     rscf['file_ctime'] = romStat.st_ctime_ns
