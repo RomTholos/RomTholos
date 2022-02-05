@@ -1,7 +1,7 @@
 import glob, os, sys
 import hashlib, zlib, hmac
 import py7zr
-from utils import b3sum, fs
+from utils import b3sum, fs, par2
 import argparse, json
 import msgpack 
 
@@ -21,7 +21,7 @@ rscf_header_version = '\x00\x00\x00\x01' # Container Version 1
 parser = argparse.ArgumentParser(
     description = 'RSCF Updater')
 parser.add_argument('action',
-    choices = ['update', 'verify', 'clean'],
+    choices = ['update', 'verify', 'clean', 'par2'],
     help = 'Select what action to perform.')
 parser.add_argument('-r', '--rootdir',
     required = True,
@@ -82,6 +82,15 @@ def cleanRSCF(path):
 # 2. Check if rscf file is already present
 def checkRscfExists(path):
     if os.path.isfile(path+'.rscf'):
+        r = True
+
+    else:
+        r = False
+        
+    return r
+    
+def checkPar2Exists(path):
+    if os.path.isfile(path+'.par2'):
         r = True
 
     else:
@@ -243,6 +252,20 @@ if os.listdir(cacheRoot):
 if args.action == 'clean':
     if os.path.isdir(fileRoot):
         cleanRSCF(fileRoot)
+
+if args.action == 'par2':
+    if os.path.isdir(args.rootdir):
+               
+        fileList = getFiles(fileRoot)
+        for file in fileList:
+            e = checkPar2Exists(file)
+            
+            if e is False:
+                par2.create_par2(file)
+            
+            o = par2.verify_par2(file)
+            
+            print(f'Par2 Verified? {str(o)}')
         
 if args.action == 'update':
     if os.path.isdir(args.rootdir):
