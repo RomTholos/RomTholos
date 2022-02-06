@@ -1,6 +1,6 @@
 from pathlib import Path
 from utils import b3sum, fs
-import os
+import os, sys
 import msgpack 
 import hashlib, zlib, hmac
 
