@@ -163,19 +163,6 @@ def getROMMeta(filepath):
 # TODO Use a cache and update 2.2, including all sub files (ROM's)
 # TODO Deep verification level with unpacking archive
 
-def rscfUpdateHeader(file, rscf):
-    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1].upper()
-    romStat = os.stat(file)
-    rscf['file_mtime'] = romStat.st_mtime_ns
-    rscf['file_ctime'] = romStat.st_ctime_ns
-    rscf['file_inode'] = romStat.st_ino
-    rscf['file_size'] = romStat.st_size
-    
-    file = Path(file)
-    file = file.with_suffix(f'{file.suffix}.rscf')
-    
-    rscf.write_rscf(rscf,file)
-
 def processFile(file):
     rscf = rscfTemplate
     rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1].upper()
@@ -332,7 +319,9 @@ if args.action == 'update':
                     print('File does not match: ' + file)
                     
                 if rscfRewrite == True:
-                    rscfUpdateHeader(file, rscf_r)
+                    file2 = Path(file)
+                    file2 = file2.with_suffix(f'{file2.suffix}.rscf')
+                    rscf.update_header(t_temp, rscf_r, file2)
                     print('RSCF header rewrittten for file: ' + file)
                     
         print('From ' + str(len(fileList)) + ' files,')

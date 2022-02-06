@@ -164,3 +164,15 @@ def new_file(file_tuple, target=None, cache=None):
         rom[0].unlink()
         
     return target
+    
+def update_header(file_tuple, rscf_data, target=None):
+
+    path = file_tuple[0]
+
+    rscf_data['file_blake3'] = b3sum.get_b3sum(path)
+    rscf_data['file_size']   = file_tuple[1]
+    rscf_data['file_ctime']  = file_tuple[2]
+    rscf_data['file_mtime']  = file_tuple[3]
+    rscf_data['file_inode']  = file_tuple[4]
+    
+    write_rscf(rscf_data, target)
