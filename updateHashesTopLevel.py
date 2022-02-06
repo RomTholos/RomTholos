@@ -170,7 +170,23 @@ if args.action == 'update':
     if os.path.isdir(args.rootdir):
         path = Path(args.rootdir)
         fileList = fs.get_files(path, recursive=True, type_filter='*', type_neg_filter=['.rscf','.par2','.sig'])       
-        #fileList = getFiles(fileRoot)
+        
+        # TODO: Add concurrent.futures Process pool here
+        # Benchmarks:
+        ## 8 Workers on 4 core / 8 thread CPU
+        # Threaded Single Pool: 34.49 seconds
+        # Threaded Multi Pool: 27.85 seconds
+        # Processes Single Pool: 15.17 seconds
+        # Processes Multi Pool: 14.77 seconds    <--- fastest
+
+        # # 4 Workers on 4 core / 8 thread CPU
+        # Threaded Single Pool: 35.36 seconds
+        # Threaded Multi Pool: 29.11 seconds
+        # Processes Single Pool: 17.77 seconds   <--- fastest
+        # Processes Multi Pool: 17.85 seconds
+        #
+        # Will implement Process Single Pool, since less complex and fast.
+        
         verified = 0
         broken = 0
         for file_tuple in fileList:
