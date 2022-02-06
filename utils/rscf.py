@@ -161,8 +161,8 @@ def new_file(file_tuple, target=None, cache=None):
     print("RSCF file written")
     
     # Purge cache
-    romList = fs.get_files(cache) #Update in case something happened
-    for rom in romList:
+    #Update in case something happened
+    for rom in fs.get_files(cache):
         rom[0].unlink()
         
     return target

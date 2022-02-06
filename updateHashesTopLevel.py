@@ -134,7 +134,7 @@ def compressFile(filePath, fileName, method="py7zr"):
 # TODO Deep verification level with unpacking archive
 
 # Check if cache is not empty
-if os.listdir(cacheRoot):
+if any(Path(r_cacheRoot).iterdir()):
     sys.exit("Assigned cache contains files. Abort.")
 
 if args.action == 'clean':
