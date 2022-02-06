@@ -139,10 +139,16 @@ def compressFile(filePath, fileName, method="py7zr"):
 if any(Path(r_cacheRoot).iterdir()):
     sys.exit("Assigned cache contains files. Abort.")
 
+###########################
+## Action: update
+########################### 
 if args.action == 'clean':
     if os.path.isdir(fileRoot):
         cleanRSCF(fileRoot)
 
+###########################
+## Action: par2
+########################### 
 if args.action == 'par2':
     if os.path.isdir(args.rootdir):
                
