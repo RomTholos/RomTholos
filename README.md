@@ -34,7 +34,7 @@ The typical use case is to compress a certain RAW file format like <.iso> or <.b
 In a first step, all original files get analysed and all meta data like file hashes, directory structure, creation and modified date is extracted. All these information are stored in a RSCF sidecar file for later access. After this step, all original files are placed inside a compressed archive of the users choice. This can potentially hide some required file metadata, that now must be retriefed from the RSCF sidecar file. For integrity checks, the RSCF file includes the archive file hash and allows to detect modifications and bit flips in the archive file. To prevent a malicious attack on the RSCF file, a pure optional GPG signature can be attached to the RSCF file. For bit flip protection, a single par2 archive can be created and referenced in the RSCF file to allow reconstruction at a later date.
 
 ### File Spec
-The Header, BSON Payload and Footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 500 kbytes, depending on the file count.
+The Header, BSON Payload and Footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 60 kbytes, depending on the file count.
 
 #### Header
 ```python
@@ -89,6 +89,7 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
 RSCF can be signed with GPG for tampering protection. Files shall be using the .sig extension.
 
 ### Sample Folder Layout
+
 #### In tree (sidecar files)
 ```
 romRoot/
@@ -100,6 +101,23 @@ romRoot/
    |--- game_archive_b.7z.sig
    |--- game_archive_b.7z.par2    # Optional par2 file
    |--- ...
+```
+
+#### Out of tree
+```
+romRoot/
+   |
+   |--- game_archive_a.7z         # Compressed game files
+   |--- game_archive_b.7z
+   |--- ...
+metaRoot/
+   |--- game_archive_a.7z.rscf    # File metadata and signatures
+   |--- game_archive_a.7z.sig     # Optional GPG signature for rscf tampering protection
+   |--- game_archive_b.7z.rscf
+   |--- game_archive_b.7z.sig
+   |--- game_archive_b.7z.par2    # Optional par2 file
+   |--- ...
+
 ```
 
 ## Renderer
