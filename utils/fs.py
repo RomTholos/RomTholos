@@ -1,4 +1,6 @@
 import glob, os, sys
+import py7zr
+from pathlib import Path
 
 # Stat file ctime_ns, atime_ns, size, inode_no (if on regular fs)
 # Default ignore inode, but can be configured
@@ -8,27 +10,25 @@ option_cache = 'cache/'
 # Geth file_tuples for all files in a directory
 #file_tuple[n] 0         1         2       3       4
 #file_tuple = (filepath, filesize, c_time, m_time, inode)
-def get_files(path, recursive=True, type_filter=None):
+def get_files(path, recursive=True, type_filter='*', type_neg_filter=[]):
 
     #Create file list
     file_list = []
-    
-    if type_filter == None:
-        type_filter = '*'
     
     if recursive == True:
         type_filter = f'**/{type_filter}'
     
     for p in path.glob(type_filter):
         if p.is_file():
-            f_stat = p.stat()
-            filesize = f_stat.st_size
-            c_time = f_stat.st_ctime_ns
-            m_time = f_stat.st_mtime_ns
-            inode = f_stat.st_ino
-            
-            file = p, filesize, c_time, m_time, inode
-            file_list.append(file)
+            if not p.suffix in type_neg_filter:
+                f_stat = p.stat()
+                filesize = f_stat.st_size
+                c_time = f_stat.st_ctime_ns
+                m_time = f_stat.st_mtime_ns
+                inode = f_stat.st_ino
+                
+                file = p, filesize, c_time, m_time, inode
+                file_list.append(file)
             
     return(file_list)
     

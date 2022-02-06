@@ -28,10 +28,13 @@ def write_rscf(rscf_data, target):
         f.write(mpack_data)
         f.write(rscf_footer.encode('ascii'))
         
+    return target
+        
 def read_rscf(path):
-
+    #print(f'Open rscf path: {str(path)}')
     with path.open(mode='rb') as f:
         s = f.read() #unsafe
+
         sp = s.split(b'\x1e\x02\x02\x02')
         if sp[0][0:5] == b'RSCF\x01' and sp[0][5:9] == str.encode(rscf_header_version):
             mpack_digest_r = sp[0][10:]
@@ -136,10 +139,9 @@ def new_file(file_tuple, target=None, cache=None):
         #meta_tuple[n] 0       1        2        3        4      5       6         7
         #meta_tuple = (f_size, f_ctime, f_mtime, h_crc32, h_md5, h_sha1, h_sha256, h_blake3
         
-        
         meta = { 
             romIndex: {
-                'path':   rom.relative_to(cache),
+                'path':   str(rom[0].relative_to(cache)),
                 'size':   meta_tuple[0],
                 'ctime':  meta_tuple[1],
                 'mtime':  meta_tuple[2],

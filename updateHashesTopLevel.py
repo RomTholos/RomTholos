@@ -96,8 +96,10 @@ def cleanRSCF(path):
                 os.remove(filename)
 
 # 2. Check if rscf file is already present
-def checkRscfExists(path):
-    if os.path.isfile(path+'.rscf'):
+def checkRscfExists(file_tuple, target):
+    path = file_tuple[0]
+    path = path.with_suffix(f'{path.suffix}.rscf')
+    if path.is_file():
         r = True
 
     else:
@@ -163,57 +165,6 @@ def getROMMeta(filepath):
 # TODO Use a cache and update 2.2, including all sub files (ROM's)
 # TODO Deep verification level with unpacking archive
 
-def processFile(file):
-    rscf = rscfTemplate
-    rscf['file_blake3'] = b3sum.getBlake3Sum(file)[1].upper()
-    romStat = os.stat(file)
-    rscf['file_mtime'] = romStat.st_mtime_ns
-    rscf['file_ctime'] = romStat.st_ctime_ns
-    rscf['file_inode'] = romStat.st_ino
-    rscf['file_size'] = romStat.st_size
-    
-    # Check if cache is not empty
-    if os.listdir(cacheRoot):
-        sys.exit("Assigned cache contains files. Abort.")
-    
-    # Decompress ROMs into the cache
-    decompressAll(file,"none")
-    
-    # Get all ROM files
-    romList = getFiles(cacheRoot)
-    romIndex = 0
-    for rom in romList:
-        ### Get required file metadata
-        fileMeta = getROMMeta(rom)
-        
-        meta = { 
-            romIndex: {
-                'path':   os.path.relpath(rom, start=cacheRoot),
-                'size':   fileMeta[0],
-                'ctime':  fileMeta[1],
-                'mtime':  fileMeta[2],
-                'crc32':  fileMeta[3],
-                'md5':    fileMeta[4],
-                'sha1':   fileMeta[5],
-                'sha256': fileMeta[6],
-                'blake3': fileMeta[7]
-            }       
-        }
-        print(meta)
-        rscf['files'].update(meta)
-        romIndex = romIndex+1
-    
-    # Write RSCF file
-    file2 = Path(file)
-    file2 = file2.with_suffix(f'{file2.suffix}.rscf')
-    rscf.write_rscf(rscf,file2)
-    print("RSCF file written")
-    
-    # Purge cache
-    romList = getFiles(cacheRoot) #Update in case something happened
-    for rom in romList:
-        os.remove(rom)
-
 # Check if cache is not empty
 if os.listdir(cacheRoot):
     sys.exit("Assigned cache contains files. Abort.")
@@ -235,29 +186,27 @@ if args.action == 'par2':
             o = par2.verify_par2(file)
             
             print(f'Par2 verified {str(o)} for file {file}')
-        
+
+###########################
+## Action: update
+###########################       
 if args.action == 'update':
     if os.path.isdir(args.rootdir):
-               
-        fileList = getFiles(fileRoot)
-        print(fileList)
+        path = Path(args.rootdir)
+        fileList = fs.get_files(path, recursive=True, type_filter='*', type_neg_filter=['.rscf','.par2','.sig'])       
+        #fileList = getFiles(fileRoot)
         verified = 0
         broken = 0
         for file in fileList:
-            e = checkRscfExists(file)
+            e = checkRscfExists(file, None)
             #print("RSCF for file " + file + ' exists: ' + str(e))
             
             #file_tuple[n] 0         1         2       3       4
             #file_tuple = (filepath, filesize, c_time, m_time, inode)
-            t_path = Path(file)
-            t_stat = t_path.stat()
-            t_temp = t_path, t_stat.st_size, t_stat.st_ctime_ns, t_stat.st_mtime_ns, t_stat.st_ino
            
-            # Create new RSCF file
+            # Create new RSCF file if not exists
             if e is False:
-            
-                return_val = rscf.new_file(t_temp, target=None, cache=r_cacheRoot)
-                #processFile(file)
+                return_val = rscf.new_file(file, target=None, cache=r_cacheRoot)
                     
             # Verify top level if RSCF file exists
             elif e is True:
@@ -265,47 +214,44 @@ if args.action == 'update':
                 rscfIntegrity = True
                 rscfRewrite = False
                 
-                file2 = Path(file)
-                file2 = file2.with_suffix(f'{file2.suffix}.rscf')
-                rscf_r = rscf.read_rscf(file2)
-                
+                t_target = file[0].with_suffix(f'{file[0].suffix}.rscf')
+                rscf_r = rscf.read_rscf(t_target)
+
                 if rscf_r == False:
-                    return_val = rscf.new_file(t_temp, target=None, cache=r_cacheRoot)
-                    #processFile(file)
+                    return_val = rscf.new_file(file, target=None, cache=r_cacheRoot)
                     verificationMode = None
                 
-                print('Processing file: ' + file)
+                print('Processing file: ' + str(file))
                 
                 if verificationMode == 'fast':
-                    romStat = os.stat(file)
-                    if not rscf_r['file_mtime'] == romStat.st_mtime_ns:
+                    if not rscf_r['file_mtime'] == file[3]:
                         print('mtime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
-                    if not rscf_r['file_ctime'] == romStat.st_ctime_ns:
+                    if not rscf_r['file_ctime'] == file[2]:
                         print('ctime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
                     if option_inode is True:
-                        if not rscf_r['file_inode'] == romStat.st_ino:
+                        if not rscf_r['file_inode'] == file[4]:
                             print('inode not correct, fallback to hash verification.')
                             print('Warning: Inode verification does not work on all filesystems. Disable if unshure.')
                             verificationMode = 'hash'
                             rscfIntegrity = False
                             rscfRewrite = True
                         
-                    if not rscf_r['file_size'] == romStat.st_size:
+                    if not rscf_r['file_size'] == file[1]:
                         print('size not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
 
                 if verificationMode == 'hash':        
-                    if not b3sum.getBlake3Sum(file)[1] == rscf_r['file_blake3']:
+                    if not b3sum.get_b3sum(file[0]) == rscf_r['file_blake3']:
                         print('Hash does not match!')
                         rscfIntegrity = False
                         rscfRewrite = False
@@ -319,9 +265,8 @@ if args.action == 'update':
                     print('File does not match: ' + file)
                     
                 if rscfRewrite == True:
-                    file2 = Path(file)
-                    file2 = file2.with_suffix(f'{file2.suffix}.rscf')
-                    rscf.update_header(t_temp, rscf_r, file2)
+                    t_target = file.with_suffix(f'{file.suffix}.rscf')
+                    rscf.update_header(file, rscf_r, t_target)
                     print('RSCF header rewrittten for file: ' + file)
                     
         print('From ' + str(len(fileList)) + ' files,')
