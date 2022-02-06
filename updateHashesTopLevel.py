@@ -1,13 +1,15 @@
 import glob, os, sys
 import hashlib, zlib, hmac
 import py7zr
-from utils import b3sum, fs, par2
+from utils import rscf, b3sum, fs, par2
 import argparse, json
 import msgpack 
+from pathlib import Path
 
 # Parameters
 fileRoot = ''
 cacheRoot = ''
+r_cacheRoot = Path(r'cache/')
 cacheRootBig = ''
 metaRoot = ''
 
@@ -62,23 +64,23 @@ else:
     option_sidecar = True
 
 ### Data Container
-rscfTemplate = {
-    'version': 0,
-    'file_blake3': 0,
-    'file_mtime': 0,
-    'file_ctime': 0,
-    'file_size': 0,
-    'file_inode': 0,
-    'files': {},
-    'renderer': 'main.7z-lzma' # none, main.7z-lzma , main.7z-zstd, ...
-}
+# rscfTemplate = {
+    # 'version': 0,
+    # 'file_blake3': 0,
+    # 'file_mtime': 0,
+    # 'file_ctime': 0,
+    # 'file_size': 0,
+    # 'file_inode': 0,
+    # 'files': {},
+    # 'renderer': 'main.7z-lzma' # none, main.7z-lzma , main.7z-zstd, ...
+# }
     
 def getFiles(path):
     fileList = []
     
     # Process every file in root_dir
     for filename in glob.iglob(os.path.join(path, '**/*.*'), recursive=True):
-        if os.path.isfile(filename) and filename[-5:] != ".rscf" and filename[-5:] != ".par2" and filename[-5:] != ".sig" :
+        if os.path.isfile(filename) and filename[-5:] != ".rscf" and filename[-5:] != ".par2" and filename[-4:] != ".sig" :
             fileList.append(filename)
     
     return fileList
@@ -111,37 +113,6 @@ def checkPar2Exists(path):
         r = False
         
     return r
-    
-def writeRscf(rscfData, path):
-    with open(path+'.rscf', 'wb') as f:
-        mpack_data = msgpack.packb(rscfData, use_bin_type=True)
-        mpack_digest = hashlib.sha256(mpack_data).hexdigest()
-        rscf_header = 'RSCF\x01' + rscf_header_version + '\x1d' + mpack_digest + '\x1e\x02\x02\x02'
-        rscf_footer = '\x03\x03\x03\x04'
-        f.write(rscf_header.encode('ascii'))
-        f.write(mpack_data)
-        f.write(rscf_footer.encode('ascii'))
-
-def readRscf(path):
-    with open(path, 'rb') as f:
-        s = f.read() #unsafe
-        sp = s.split(b'\x1e\x02\x02\x02')
-        if sp[0][0:5] == b'RSCF\x01' and sp[0][5:9] == str.encode(rscf_header_version):
-            mpack_digest_r = sp[0][10:]
-            mpack_data_r = sp[1][:-4]
-            rscf_data = msgpack.unpackb(mpack_data_r, use_list=False, raw=False, strict_map_key=False)
-        
-            mpack_digest = hashlib.sha256(mpack_data_r).hexdigest()
-        
-            if str.encode(mpack_digest) == mpack_digest_r:
-                #print("Digest OK")
-                #print(rscf_data)
-                return rscf_data
-            else:
-                return False
-            
-        else:
-            return False
 
 def compressFile(filePath, fileName, method="py7zr"):
     # Allow various compression methods to be implemented.
@@ -208,7 +179,7 @@ def rscfUpdateHeader(file, rscf):
     rscf['file_inode'] = romStat.st_ino
     rscf['file_size'] = romStat.st_size
     
-    writeRscf(rscf,file)
+    rscf.write_rscf(rscf,file)
 
 def processFile(file):
     rscf = rscfTemplate
@@ -251,7 +222,7 @@ def processFile(file):
         romIndex = romIndex+1
     
     # Write RSCF file
-    writeRscf(rscf,file)
+    rscf.write_rscf(rscf,file)
     print("RSCF file written")
     
     # Purge cache
@@ -285,15 +256,24 @@ if args.action == 'update':
     if os.path.isdir(args.rootdir):
                
         fileList = getFiles(fileRoot)
+        print(fileList)
         verified = 0
         broken = 0
         for file in fileList:
             e = checkRscfExists(file)
             #print("RSCF for file " + file + ' exists: ' + str(e))
             
+            #file_tuple[n] 0         1         2       3       4
+            #file_tuple = (filepath, filesize, c_time, m_time, inode)
+            t_path = Path(file)
+            t_stat = t_path.stat()
+            t_temp = t_path, t_stat.st_size, t_stat.st_ctime_ns, t_stat.st_mtime_ns, t_stat.st_ino
+           
             # Create new RSCF file
             if e is False:
-                processFile(file)
+            
+                return_val = rscf.new_file(t_temp, target=None, cache=r_cacheRoot)
+                #processFile(file)
                     
             # Verify top level if RSCF file exists
             elif e is True:
@@ -301,44 +281,45 @@ if args.action == 'update':
                 rscfIntegrity = True
                 rscfRewrite = False
                 
-                rscf = readRscf(file+'.rscf')
+                rscf_r = rscf.read_rscf(file+'.rscf')
                 
-                if rscf == False:
-                    processFile(file)
+                if rscf_r == False:
+                    return_val = rscf.new_file(t_temp, target=None, cache=r_cacheRoot)
+                    #processFile(file)
                     verificationMode = None
                 
                 print('Processing file: ' + file)
                 
                 if verificationMode == 'fast':
                     romStat = os.stat(file)
-                    if not rscf['file_mtime'] == romStat.st_mtime_ns:
+                    if not rscf_r['file_mtime'] == romStat.st_mtime_ns:
                         print('mtime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
-                    if not rscf['file_ctime'] == romStat.st_ctime_ns:
+                    if not rscf_r['file_ctime'] == romStat.st_ctime_ns:
                         print('ctime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
                     if option_inode is True:
-                        if not rscf['file_inode'] == romStat.st_ino:
+                        if not rscf_r['file_inode'] == romStat.st_ino:
                             print('inode not correct, fallback to hash verification.')
                             print('Warning: Inode verification does not work on all filesystems. Disable if unshure.')
                             verificationMode = 'hash'
                             rscfIntegrity = False
                             rscfRewrite = True
                         
-                    if not rscf['file_size'] == romStat.st_size:
+                    if not rscf_r['file_size'] == romStat.st_size:
                         print('size not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
 
                 if verificationMode == 'hash':        
-                    if not b3sum.getBlake3Sum(file)[1] == rscf['file_blake3']:
+                    if not b3sum.getBlake3Sum(file)[1] == rscf_r['file_blake3']:
                         print('Hash does not match!')
                         rscfIntegrity = False
                         rscfRewrite = False
@@ -352,7 +333,7 @@ if args.action == 'update':
                     print('File does not match: ' + file)
                     
                 if rscfRewrite == True:
-                    rscfUpdateHeader(file, rscf)
+                    rscfUpdateHeader(file, rscf_r)
                     print('RSCF header rewrittten for file: ' + file)
                     
         print('From ' + str(len(fileList)) + ' files,')
