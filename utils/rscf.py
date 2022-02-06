@@ -161,10 +161,12 @@ def new_file(file_tuple, target=None, cache=None):
     print("RSCF file written")
     
     # Purge cache
-    #Update in case something happened
+    # Delete all files in cache
     for path in cache.glob('**/*'):
         if path.is_file():
             path.unlink()
+    # Delete all directories in cache
+    for path in cache.glob('**/*'):
         elif path.is_dir():
             path.rmdir()
         
