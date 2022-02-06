@@ -43,17 +43,17 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
 #### Msgpack Payload
 ```python
 {
-    'version': 0,                # File format version									# mandatory
-    'file_blake3': 0,            # Blake3 hash of container  							# mandatory
-    'file_mtime': 0,             # Modification time of container [ns]					# mandatory
-	'file_ctime': 0,			 # Creation time (Platform dependent [ns]				# optional
-    'file_size': 0,              # File size of container  [bytes]						# mandatory
-	'file_inode': 0,			 # File inode number or index on supported filesystems	# optional
-    'files': {					 # Only needed for archives								# optional
+    'version': 0,                # File format version                                  # mandatory
+    'file_blake3': 0,            # Blake3 hash of container                             # mandatory
+    'file_mtime': 0,             # Modification time of container [ns]                  # mandatory
+    'file_ctime': 0,             # Creation time (Platform dependent [ns]               # optional
+    'file_size': 0,              # File size of container  [bytes]                      # mandatory
+    'file_inode': 0,             # File inode number or index on supported filesystems  # optional
+    'files': {                   # Only needed for archives                             # optional
       <fileIndex>: {             # Index starts always with 0      # Used by:
         'path':   <filepath>,    # Relative path inside archive    # DAT, archive.org, SMDB
         'size':   <filesize>,    # File size                       # DAT, archive.org
-        'ctime':  <filectime,    # Creation date				   # Some DOS games
+        'ctime':  <filectime,    # Creation date                   # Some DOS games
         'mtime':  <filemtime>,   # Modification date               # Some DOS games
         'crc32':  <filecrc32>,   # CRC32 hash                      # DAT, archive.org 
         'md5':    <filemd5>,     # MD5 hash                        # DAT, archive.org
@@ -62,9 +62,9 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
         'blake3': <fileblake3>   # Blake3 hash                     # For speed and future use
       },
       <fileIndex+1>: {
-        'path':   <romfilepath>, 
+        'path':   <romfilepath>,
         'size':   <romfilesize>,
-        'ctime':  <filectime,		
+        'ctime':  <filectime,
         'mtime':  <romfilemtime>,
         'crc32':  <romfilecrc32>,
         'md5':    <romfilemd5>,
@@ -74,11 +74,11 @@ The Header, BSON Payload and Footer are all written in binary mode to a file. Th
       }
     },
     'renderer': 'main.7z-lzma',  # none, main.7z-lzma , main.7z-zstd, ...
-	'parity': {					 # optional block
-		'type':   <parity_type>, # par2
-		'path':   <parfilepath>,
-		'sha256': <parfilehash>
-	}
+    'parity': {                  # optional block
+        'type':   <parity_type>, # par2
+        'path':   <parfilepath>,
+        'sha256': <parfilehash>
+    }
 }
 ```
 #### Footer
