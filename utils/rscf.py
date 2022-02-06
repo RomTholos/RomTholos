@@ -162,11 +162,11 @@ def new_file(file_tuple, target=None, cache=None):
     
     # Purge cache
     #Update in case something happened
-    for rom in fs.get_files(cache):
-        if rom[0].is_file():
-            rom[0].unlink()
-        elif rom[0].is_dir():
-            rom[0].rmdir()
+    for path in path.glob(f'{cache}/**/*'):
+        if path.is_file():
+            path.unlink()
+        elif path.is_dir():
+            path.rmdir()
         
         
     return target
