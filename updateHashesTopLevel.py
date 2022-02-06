@@ -53,7 +53,8 @@ else:
 
 if os.path.isdir(args.cachedir) and args.cachedir != "":
     cacheRoot = args.cachedir
-    r_cacheRoot = Path(r'{cacheRoot}')
+    raw_cacheRoot = r'{}'.format(cacheRoot)
+    r_cacheRoot = Path(raw_cacheRoot)
 else:
     sys.exit("Specfiy valid directory")
     
