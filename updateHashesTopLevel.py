@@ -126,38 +126,6 @@ def compressFile(filePath, fileName, method="py7zr"):
         with py7zr.SevenZipFile(fileName + '.7z', 'w') as a:
             a.write(filePath, fileName)
 
-### Calculate all required file hashes, size and mtime from path
-# Modified from https://stackoverflow.com/questions/1742866/compute-crc-of-file-in-python
-def getROMMeta(filepath):
-    f_stat = os.stat(filepath)
-    
-    f_mtime = f_stat.st_mtime_ns
-    f_ctime = f_stat.st_ctime_ns
-    f_size = f_stat.st_size
-    
-    h_crc32 = 0
-    h_md5 = hashlib.md5()
-    h_sha1 = hashlib.sha1()
-    h_sha256 = hashlib.sha256()
-    h_blake3 = b3sum.getBlake3Sum(filepath)[1].upper()
-    
-    with open(filepath, 'rb') as fh:
-        while True:
-            s = fh.read(65536)
-            if not s:
-                break
-            h_crc32 = zlib.crc32(s, h_crc32)
-            h_md5.update(s)
-            h_sha1.update(s)
-            h_sha256.update(s)
-        
-        h_crc32 = "%08X" % (h_crc32 & 0xFFFFFFFF)
-        h_md5 = h_md5.hexdigest().upper()
-        h_sha1 = h_sha1.hexdigest().upper()
-        h_sha256 = h_sha256.hexdigest().upper()
-
-        return [f_size, f_ctime, f_mtime, h_crc32, h_md5, h_sha1, h_sha256, h_blake3]
-
 # 2.1 If rscf file is present, verify
 
 # 2.2 If not present generate new rscf file, top level
@@ -197,16 +165,22 @@ if args.action == 'update':
         #fileList = getFiles(fileRoot)
         verified = 0
         broken = 0
-        for file in fileList:
-            e = checkRscfExists(file, None)
+        for file_tuple in fileList:
+            e = checkRscfExists(file_tuple, None)
             #print("RSCF for file " + file + ' exists: ' + str(e))
             
             #file_tuple[n] 0         1         2       3       4
             #file_tuple = (filepath, filesize, c_time, m_time, inode)
+            
+            file_path  = file_tuple[0]
+            file_size  = file_tuple[1]
+            file_ctime = file_tuple[2]
+            file_mtime = file_tuple[3]
+            file_inode = file_tuple[4]
            
             # Create new RSCF file if not exists
             if e is False:
-                return_val = rscf.new_file(file, target=None, cache=r_cacheRoot)
+                return_val = rscf.new_file(file_tuple, target=None, cache=r_cacheRoot)
                     
             # Verify top level if RSCF file exists
             elif e is True:
@@ -214,44 +188,44 @@ if args.action == 'update':
                 rscfIntegrity = True
                 rscfRewrite = False
                 
-                t_target = file[0].with_suffix(f'{file[0].suffix}.rscf')
+                t_target = file_path.with_suffix(f'{file_path.suffix}.rscf')
                 rscf_r = rscf.read_rscf(t_target)
 
                 if rscf_r == False:
-                    return_val = rscf.new_file(file, target=None, cache=r_cacheRoot)
+                    return_val = rscf.new_file(file_tuple, target=None, cache=r_cacheRoot)
                     verificationMode = None
                 
-                print('Processing file: ' + str(file))
+                print('Processing file: ' + str(file_tuple))
                 
                 if verificationMode == 'fast':
-                    if not rscf_r['file_mtime'] == file[3]:
+                    if not rscf_r['file_mtime'] == file_mtime:
                         print('mtime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
-                    if not rscf_r['file_ctime'] == file[2]:
+                    if not rscf_r['file_ctime'] == file_ctime:
                         print('ctime not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
                         
                     if option_inode is True:
-                        if not rscf_r['file_inode'] == file[4]:
+                        if not rscf_r['file_inode'] == file_inode:
                             print('inode not correct, fallback to hash verification.')
                             print('Warning: Inode verification does not work on all filesystems. Disable if unshure.')
                             verificationMode = 'hash'
                             rscfIntegrity = False
                             rscfRewrite = True
                         
-                    if not rscf_r['file_size'] == file[1]:
+                    if not rscf_r['file_size'] == file_size:
                         print('size not correct, fallback to hash verification.')
                         verificationMode = 'hash'
                         rscfIntegrity = False
                         rscfRewrite = True
 
                 if verificationMode == 'hash':        
-                    if not b3sum.get_b3sum(file[0]) == rscf_r['file_blake3']:
+                    if not b3sum.get_b3sum(file_path) == rscf_r['file_blake3']:
                         print('Hash does not match!')
                         rscfIntegrity = False
                         rscfRewrite = False
@@ -262,12 +236,12 @@ if args.action == 'update':
                         verified += 1
                 else:
                     broken += 1
-                    print('File does not match: ' + file)
+                    print('File does not match: ' + file_tuple)
                     
                 if rscfRewrite == True:
-                    t_target = file.with_suffix(f'{file.suffix}.rscf')
-                    rscf.update_header(file, rscf_r, t_target)
-                    print('RSCF header rewrittten for file: ' + file)
+                    t_target = file_path.with_suffix(f'{file_path.suffix}.rscf')
+                    rscf.update_header(file_tuple, rscf_r, t_target)
+                    print('RSCF header rewrittten for file: ' + file_path)
                     
         print('From ' + str(len(fileList)) + ' files,')
         print('\t' + str(verified) + " are OK")
