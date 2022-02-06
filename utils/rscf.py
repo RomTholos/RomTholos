@@ -162,7 +162,7 @@ def new_file(file_tuple, target=None, cache=None):
     
     # Purge cache
     #Update in case something happened
-    for path in path.glob(f'{cache}/**/*'):
+    for path in cache.glob('**/*'):
         if path.is_file():
             path.unlink()
         elif path.is_dir():
