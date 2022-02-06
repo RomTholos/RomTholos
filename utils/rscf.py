@@ -1,6 +1,6 @@
 from pathlib import Path
 from utils import b3sum, fs
-import os, sys
+import os, sys, shutil
 import msgpack 
 import hashlib, zlib, hmac
 
@@ -165,10 +165,8 @@ def new_file(file_tuple, target=None, cache=None):
     for path in cache.glob('**/*'):
         if path.is_file():
             path.unlink()
-    # Delete all directories in cache
-    for path in cache.glob('**/*'):
-        if path.is_dir():
-            path.rmdir()
+        elif path.is_dir():
+            shutil.rmtree(path)
         
         
     return target
