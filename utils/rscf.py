@@ -167,7 +167,7 @@ def new_file(file_tuple, target=None, cache=None):
             path.unlink()
     # Delete all directories in cache
     for path in cache.glob('**/*'):
-        elif path.is_dir():
+        if path.is_dir():
             path.rmdir()
         
         
