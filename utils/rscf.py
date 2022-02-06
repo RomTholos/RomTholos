@@ -17,8 +17,9 @@ rscfTemplate = {
     'renderer': 'main.7z-lzma' # none, main.7z-lzma , main.7z-zstd, ...
 }
 
-def write_rscf(rscf_data, path):
-    with open(str(path)+'.rscf', 'wb') as f:
+def write_rscf(rscf_data, target):
+    
+    with target.open(mode='wb') as f:
         mpack_data = msgpack.packb(rscf_data, use_bin_type=True)
         mpack_digest = hashlib.sha256(mpack_data).hexdigest()
         rscf_header = 'RSCF\x01' + rscf_header_version + '\x1d' + mpack_digest + '\x1e\x02\x02\x02'
@@ -28,7 +29,8 @@ def write_rscf(rscf_data, path):
         f.write(rscf_footer.encode('ascii'))
         
 def read_rscf(path):
-    with open(str(path), 'rb') as f:
+
+    with path.open(mode='rb') as f:
         s = f.read() #unsafe
         sp = s.split(b'\x1e\x02\x02\x02')
         if sp[0][0:5] == b'RSCF\x01' and sp[0][5:9] == str.encode(rscf_header_version):

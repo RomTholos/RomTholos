@@ -123,14 +123,6 @@ def compressFile(filePath, fileName, method="py7zr"):
     if method == "py7zr":
         with py7zr.SevenZipFile(fileName + '.7z', 'w') as a:
             a.write(filePath, fileName)
-            
-def decompress7zAll(path, fileName):
-    with py7zr.SevenZipFile(path, 'r') as a:
-            a.extractall(cacheRoot)
-            
-def decompressAll(path, fileName):
-    if path.endswith('.7z'):
-        decompress7zAll(path, fileName)
 
 ### Calculate all required file hashes, size and mtime from path
 # Modified from https://stackoverflow.com/questions/1742866/compute-crc-of-file-in-python
@@ -179,6 +171,9 @@ def rscfUpdateHeader(file, rscf):
     rscf['file_inode'] = romStat.st_ino
     rscf['file_size'] = romStat.st_size
     
+    file = Path(file)
+    file = file.with_suffix(f'{file.suffix}.rscf')
+    
     rscf.write_rscf(rscf,file)
 
 def processFile(file):
@@ -222,7 +217,9 @@ def processFile(file):
         romIndex = romIndex+1
     
     # Write RSCF file
-    rscf.write_rscf(rscf,file)
+    file2 = Path(file)
+    file2 = file2.with_suffix(f'{file2.suffix}.rscf')
+    rscf.write_rscf(rscf,file2)
     print("RSCF file written")
     
     # Purge cache
@@ -281,7 +278,9 @@ if args.action == 'update':
                 rscfIntegrity = True
                 rscfRewrite = False
                 
-                rscf_r = rscf.read_rscf(file+'.rscf')
+                file2 = Path(file)
+                file2 = file2.with_suffix(f'{file2.suffix}.rscf')
+                rscf_r = rscf.read_rscf(file2)
                 
                 if rscf_r == False:
                     return_val = rscf.new_file(t_temp, target=None, cache=r_cacheRoot)
