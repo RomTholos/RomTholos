@@ -122,7 +122,7 @@ def new_file(file_tuple, target=None, cache=None):
         sys.exit("Cache must be specified for this operation.")
     
     # Check if cache is not empty
-    if os.listdir(cache):
+    if any(Path(cache).iterdir()):
         sys.exit("Assigned cache contains files. Abort.")
     
     # Decompress ROMs into the cache
