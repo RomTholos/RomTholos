@@ -34,11 +34,11 @@ The typical use case is to compress a certain RAW file format like <.iso> or <.b
 In a first step, all original files get analysed and all meta data like file hashes, directory structure, creation and modification date is extracted. All these information are stored in a RSCF sidecar file for later access. After this step, all original files are placed inside a compressed archive of the users choice (renderer). For integrity checks, the RSCF file includes the archive file hash and allows to detect modifications and bit-flips. To prevent a malicious attack on the RSCF file, an optional GPG signature can be attached to the RSCF file. For bit flip protection, a single par2 archive can be created and referenced in the RSCF file to allow archive repair/reconstruction at a later date.
 
 ### File Spec
-The Header, BSON Payload and Footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 60 kbytes, depending on the file count.
+The header, Msgpack payload and footer are all written in binary mode to a file. The resulting file is typically between 500 bytes to 60 kbytes, depending on the file count.
 
 #### Header
 ```python
-'RSCF\x01' + <bson_payload_sha-256> + '\x1e\x02\x02\x02'
+'RSCF\x01' + <msgpack_payload_sha-256> + '\x1e\x02\x02\x02'
 ```
 #### Msgpack Payload
 ```python
