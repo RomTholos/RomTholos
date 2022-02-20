@@ -1,4 +1,4 @@
-import argparse
+import argparse, msgpack 
 import sys
 from pathlib import Path
 import concurrent.futures
@@ -26,6 +26,11 @@ def parse_arguments():
         required = False,
         type=Path,
         help = 'Write result to file path')
+
+    parser.add_argument('--cachefile',
+        required = False,
+        type=Path,
+        help = 'Cache file stats and hashes to file. Skip expensive full file hashing if already done.')
     
     subparsers = parser.add_subparsers(dest='subcommand',
         help='Select sub command')
@@ -57,10 +62,13 @@ def parse_arguments():
     return args
 
 def process_file(file_tuple):
-    # #file_tuple = (filepath, filesize, c_time, m_time, inode)
+    #file_tuple = (filepath, filesize, c_time, m_time, inode)
     path = file_tuple[0]
     b3 = get_b3sum(path)
-    return [path, b3]
+    extended_file_tuple = list(file_tuple)
+    extended_file_tuple.append(b3)
+    #file_tuple = (filepath, filesize, c_time, m_time, inode, b3sum)
+    return extended_file_tuple
 
 def open_output(output_path):
     if output_path.is_dir():
@@ -74,6 +82,23 @@ def open_output(output_path):
     print(f'Write outputs to file: {output_path}')
     return fh
 
+def open_cachefile(cachefile_path):
+    if cachefile_path.is_dir():
+        sys.exit("Cachefile can not be a directory!")
+
+    print(f'Using cachefile: {cachefile_path}')
+ 
+    file_cache = None
+    if cachefile_path.exists():
+        fh = cachefile_path.open(mode='rb')
+        mpack_data_r = fh.read() # Unsafe
+        file_cache = msgpack.unpackb(mpack_data_r, use_list=False, raw=False, strict_map_key=False)
+        fh.close()
+
+    fh = cachefile_path.open(mode='wb')
+
+    return fh, file_cache
+
 def print_output(text_line,fh):
     print(text_line)
     if fh is not None:
@@ -84,15 +109,27 @@ def print_output(text_line,fh):
 def main():
     args = parse_arguments()
 
-    # Open output file if requested
-    fh = None
-    if args.output is not None:
-        fh = open_output(args.output)
-        
+    file_cache = {
+        "files": {
 
-    file_cache = {}
-    file_duplicates = {}
+        }
+    }    
+    file_master_cache = {}
     file_masters = set()
+    file_duplicates = {}
+
+    # Open output file if requested
+    output_fh = None
+    if args.output is not None:
+        output_fh = open_output(args.output)
+
+    # Open cache file if requested
+    cachefile_fh = None
+    if args.cachefile is not None:
+        cachefile_fh, content = open_cachefile(args.cachefile)
+
+        if content is not None:
+            file_cache = content
 
     if args.subcommand == 'inplace':
         
@@ -101,28 +138,56 @@ def main():
         file_list_len = len(file_list)
         processed = 0
 
+        # Check if file is already in cache ([:] Make a copy for iter)
+        for file in file_list[:]:
+
+            #file_tuple = (filepath, filesize, c_time, m_time, inode)
+            if str(file[0]) in file_cache['files'].keys():
+                processed += 1
+                print(f'(CACHE) Progress: {processed}/{file_list_len}', end='\r')
+                
+                # Update master_cache
+                path = file[0]
+                b3 = file_cache['files'][str(file[0])][4]
+                if b3 in file_master_cache.keys():
+                    # Path length is bigger
+                    if len(str(path)) > len(str(file_master_cache[b3])):
+                        file_duplicates[path] = b3
+                    else:
+                        file_duplicates[file_master_cache[b3]] = b3
+                        file_master_cache[b3] = path
+                else:
+                    file_master_cache[b3] = path
+
+                file_list.remove(file)
+
+        # Process all other and update cache if requested
         with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         
             results = executor.map(process_file, file_list)
             
             for result in results:
                 processed += 1
-                print(f'Progress: {processed}/{file_list_len}', end='\r')
+                print(f'(HASH) Progress: {processed}/{file_list_len}', end='\r')
 
+                # index                  0         1         2       3       4      5
+                # extended_file_tuple = (filepath, filesize, c_time, m_time, inode, b3sum)
                 path = result[0]
-                b3 = result[1]
+                b3 = result[5]
+
+                file_cache['files'][str(path)] = result[1:]
 
                 # Detect already seen file
-                if b3 in file_cache.keys():
+                if b3 in file_master_cache.keys():
                     # Path length is bigger
-                    if len(str(path)) > len(str(file_cache[b3])):
+                    if len(str(path)) > len(str(file_master_cache[b3])):
                         file_duplicates[path] = b3
                     else:
-                        file_duplicates[file_cache[b3]] = b3
-                        file_cache[b3] = path
+                        file_duplicates[file_master_cache[b3]] = b3
+                        file_master_cache[b3] = path
 
                 else:
-                    file_cache[b3] = path
+                    file_master_cache[b3] = path
             
             print(f'Hash comparison complete. Processed: {processed}/{file_list_len}')
 
@@ -131,15 +196,20 @@ def main():
 
     print('File duplication list:')
     for file in file_masters:
-        print_output('------------------------------------------------------------------', fh)
-        print_output(f'Master file: {file_cache[file]}', fh)
+        print_output('------------------------------------------------------------------', output_fh)
+        print_output(f'Master file: {file_master_cache[file]}', output_fh)
         for dup_path, dup_b3 in file_duplicates.items():
             if dup_b3 == file:
-                print_output(f'  * Duplicate: {dup_path}', fh)
+                print_output(f'  * Duplicate: {dup_path}', output_fh)
 
     # Close output file
-    if fh is not None:
-        fh.close()
+    if output_fh is not None:
+        output_fh.close()
+
+    # Write out file cache and close cachefile file
+    if cachefile_fh is not None:
+        cachefile_fh.write(msgpack.packb(file_cache, use_bin_type=True))
+        cachefile_fh.close()
 
 if __name__ == '__main__':
     main()
