@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
+import concurrent.futures
 import utils.fs as fs
 from utils.b3sum import get_b3sum as get_b3sum
-import concurrent.futures
 
 # Implements two modes:
 #  1. Search for duplicates in path
@@ -65,13 +65,19 @@ def main():
 
     if args.subcommand == 'inplace':
         
+        print(f'Get file list from path \'{str(args.path)}\'')
         file_list = fs.get_files(args.path)
+        file_list_len = len(file_list)
+        processed = 0
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
         
             results = executor.map(process_file, file_list)
             
             for result in results:
+                processed += 1
+                print(f'Progress: {processed}/{file_list_len}', end='\r')
+
                 path = result[0]
                 b3 = result[1]
 
@@ -86,10 +92,13 @@ def main():
 
                 else:
                     file_cache[b3] = path
+            
+            print(f'Hash comparison complete. Processed: {processed}/{file_list_len}')
 
     for file in file_duplicates.values():
         file_masters.add(file)
 
+    print('File duplication list:')
     for file in file_masters:
         print('------------------------------------------------------------------')
         print(f'Master file: {file_cache[file]}')
