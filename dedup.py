@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 import concurrent.futures
 import utils.fs as fs
@@ -20,6 +21,11 @@ def parse_arguments():
     #     required = False,
     #     action="store_true",
     #     help = 'Operate in interactive mode')
+
+    parser.add_argument('--output',
+        required = False,
+        type=Path,
+        help = 'Write result to file path')
     
     subparsers = parser.add_subparsers(dest='subcommand',
         help='Select sub command')
@@ -56,8 +62,33 @@ def process_file(file_tuple):
     b3 = get_b3sum(path)
     return [path, b3]
 
+def open_output(output_path):
+    if output_path.is_dir():
+        output_path = output_path / "duplicate-list.txt"
+        
+    if not output_path.exists():
+        fh = output_path.open(mode='w')
+    else:
+        sys.exit("Output file already exists")
+
+    print(f'Write outputs to file: {output_path}')
+    return fh
+
+def print_output(text_line,fh):
+    print(text_line)
+    if fh is not None:
+        fh.write(text_line)
+        fh.write("\n")
+        
+
 def main():
     args = parse_arguments()
+
+    # Open output file if requested
+    fh = None
+    if args.output is not None:
+        fh = open_output(args.output)
+        
 
     file_cache = {}
     file_duplicates = {}
@@ -100,11 +131,15 @@ def main():
 
     print('File duplication list:')
     for file in file_masters:
-        print('------------------------------------------------------------------')
-        print(f'Master file: {file_cache[file]}')
+        print_output('------------------------------------------------------------------', fh)
+        print_output(f'Master file: {file_cache[file]}', fh)
         for dup_path, dup_b3 in file_duplicates.items():
             if dup_b3 == file:
-                print(f'  * Duplicate: {dup_path}')
+                print_output(f'  * Duplicate: {dup_path}', fh)
+
+    # Close output file
+    if fh is not None:
+        fh.close()
 
 if __name__ == '__main__':
     main()
