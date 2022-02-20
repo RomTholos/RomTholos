@@ -1,7 +1,5 @@
 import argparse
 from pathlib import Path
-
-from numpy import sort
 import utils.fs as fs
 from utils.b3sum import get_b3sum as get_b3sum
 import concurrent.futures
