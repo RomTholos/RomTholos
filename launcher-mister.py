@@ -41,7 +41,6 @@ def load_config():
     MISTER_PASSWORD = data['mister_password']
     USE_PASSWORD = data['use_password']
 
-
 def ssh_cmd(cmd):
 
     if USE_PASSWORD == True:
@@ -71,15 +70,24 @@ def write_mgl(platform, rom_path):
     #     <file delay="2" type="f" index="0" path="../../_mgl/__games/Sonic The Hedgehog 2 (World) (Rev A).md"/>
     # </mistergamedescription>
 
+    rom_path = Path(rom_path)
+    game_name = rom_path.stem
+    mgl_path = Path("./temp/") / Path(game_name).with_suffix('.mgl')
+    rbf = ""
+    mgl_config = 'delay="2" type="f" index="0"'
+    game_folder = ""
+
     if platform == 'genesis':
-        rom_path = Path(rom_path)
-        game_name = rom_path.stem
-        mgl_path = Path("./temp/") / Path(game_name).with_suffix('.mgl')
+        rbf = "_console/genesis"
+        game_folder = "Genesis"
+    elif platform == 'snes':
+        rbf = "_console/SNES"
+        game_folder = "SNES"
         
     with mgl_path.open(mode='w') as f:
         f.write('<mistergamedescription>\n')
-        f.write('\t<rbf>_console/genesis</rbf>\n')
-        f.write(f'\t<file delay="2" type="f" index="0" path="../../_mgl/__games/Genesis/{rom_path.name}"/>\n')
+        f.write(f'\t<rbf>{rbf}</rbf>\n')
+        f.write(f'\t<file {mgl_config} path="../../_mgl/__games/{game_folder}/{rom_path.name}"/>\n')
         f.write('</mistergamedescription>')
 
     ssh_scp(mgl_path, '/media/fat/_mgl/')
@@ -92,6 +100,9 @@ def copy_rom(platform, rom_path):
     if platform == 'genesis':
         mister_path = '/media/fat/_mgl/__games/Genesis/'
         ssh_cmd('mkdir -p /media/fat/_mgl/__games/Genesis/')
+    elif platform == 'snes':
+        mister_path = '/media/fat/_mgl/__games/SNES/'
+        ssh_cmd('mkdir -p /media/fat/_mgl/__games/SNES/')
 
     ssh_scp(rom_path, mister_path)
 
@@ -102,6 +113,8 @@ def play_rom(platform, rom_path, mgl):
 
     if platform == 'genesis':
         print('SEGA - GENESIS/MegaDrive')
+    elif platform == 'snes':
+        print('Super Nintendo Entertainment System')
 
     ssh_cmd(cmd)
 
