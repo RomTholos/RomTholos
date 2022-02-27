@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument('-p',
         required = True,
         type=str,
-        help = 'Launch Platform. [genesis, snes]')
+        help = 'Launch Platform. [genesis, nes, snes]')
 
     parser.add_argument('-r',
         required = True,
@@ -93,6 +93,9 @@ def write_mgl(platform, rom_path):
     elif platform == 'snes':
         rbf = "_console/SNES"
         game_folder = "SNES"
+    elif platform == 'nes':
+        rbf = "_console/NES"
+        game_folder = "NES"
         
     with mgl_path.open(mode='w') as f:
         f.write('<mistergamedescription>\n')
@@ -115,6 +118,9 @@ def copy_rom(platform, rom_path):
     elif platform == 'snes':
         mister_path = f'/media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/SNES/'
         ssh_cmd(f'mkdir -p /media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/SNES/')
+    elif platform == 'nes':
+        mister_path = f'/media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/NES/'
+        ssh_cmd(f'mkdir -p /media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/NES/')
 
     ssh_scp(rom_path, mister_path)
 
@@ -124,9 +130,11 @@ def play_rom(platform, rom_path, mgl):
     print(cmd)
 
     if platform == 'genesis':
-        print('SEGA - GENESIS/MegaDrive')
+        print('Launching ROM for: SEGA - GENESIS/MegaDrive')
     elif platform == 'snes':
-        print('Super Nintendo Entertainment System')
+        print('Launching ROM for: Super Nintendo Entertainment System')
+    elif platform == 'nes':
+        print('Launching ROM for: Nintendo Entertainment System')
 
     ssh_cmd(cmd)
 
