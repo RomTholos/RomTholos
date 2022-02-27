@@ -3,5 +3,6 @@
     "mister_user": "root",
     "mister_password": "1",
     "use_password": true,
-    "ssh_key": ""
+    "ssh_key": "",
+    "target_game_folder": "_LaunchBox"
 }

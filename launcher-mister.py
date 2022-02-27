@@ -6,7 +6,8 @@ MISTER_IP = ""
 MISTER_USER = ""
 MISTER_PASSWORD = ""
 USE_PASSWORD = True
-TARGET_GAME_FOLDER = PurePosixPath("/media/fat/games/__launcher")
+TARGET_GAME_FOLDER = "_LaunchBox"
+TARGET_ROM_SUB = "_roms"
 
 def parse_arguments():
     ### Parsing command line arguments
@@ -28,29 +29,36 @@ def parse_arguments():
 
 def load_config():
     conf_path = Path("conf/launcher-mister.json")
-    with conf_path.open(mode='r') as f:
-        data = json.load(f)
+    if conf_path.exists() and conf_path.is_file():
+        with conf_path.open(mode='r') as f:
+            data = json.load(f)
 
-    global MISTER_IP
-    global MISTER_USER
-    global MISTER_PASSWORD
-    global USE_PASSWORD
+        global MISTER_IP
+        global MISTER_USER
+        global MISTER_PASSWORD
+        global USE_PASSWORD
+        global TARGET_GAME_FOLDER
 
-    MISTER_IP = data['mister_ip']
-    MISTER_USER = data['mister_user']
-    MISTER_PASSWORD = data['mister_password']
-    USE_PASSWORD = data['use_password']
+        MISTER_IP = data['mister_ip']
+        MISTER_USER = data['mister_user']
+        MISTER_PASSWORD = data['mister_password']
+        USE_PASSWORD = data['use_password']
+        TARGET_GAME_FOLDER = data['target_game_folder']
+
+        print("Launcher config loaded successfully.")
+    else:
+        print("No config file available.")
 
 def ssh_cmd(cmd):
 
     if USE_PASSWORD == True:
-        print('Login with password. Use private/public key auth if possible!')
+        print('SSH: Login with password. Use private/public key auth if possible!')
         result = subprocess.run(['plink', '-batch', '-l', MISTER_USER, '-pw', MISTER_PASSWORD, MISTER_IP , cmd], 
             shell=True, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE)
     else:
-        print('Login using private/public key. Load key with pageant.')
+        print('SSH: Login using private/public key. Load key with pageant.')
         result = subprocess.run(['plink', '-batch', '-l', MISTER_USER, '-pw', MISTER_PASSWORD, MISTER_IP , cmd], 
             shell=True, 
             stdout=subprocess.PIPE, 
@@ -63,6 +71,8 @@ def ssh_scp(src,target):
             shell=True, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE)
+
+    print(f'SCP: Successfully copied {str(src)} to MiSTer.')
 
 def write_mgl(platform, rom_path):
     # <mistergamedescription>
@@ -87,10 +97,12 @@ def write_mgl(platform, rom_path):
     with mgl_path.open(mode='w') as f:
         f.write('<mistergamedescription>\n')
         f.write(f'\t<rbf>{rbf}</rbf>\n')
-        f.write(f'\t<file {mgl_config} path="../../_mgl/__games/{game_folder}/{rom_path.name}"/>\n')
+        f.write(f'\t<file {mgl_config} path="../../{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/{game_folder}/{rom_path.name}"/>\n')
         f.write('</mistergamedescription>')
 
-    ssh_scp(mgl_path, '/media/fat/_mgl/')
+    ssh_scp(mgl_path, f'/media/fat/{TARGET_GAME_FOLDER}/')
+
+    print(f'MGL: Created mgl file for platform {game_folder} and game "{game_name}"')
 
     return mgl_path
 
@@ -98,17 +110,17 @@ def copy_rom(platform, rom_path):
     #pscp -l root -pw 1 -r '.\ingest\Sonic the Hedgehog 2 (World) (Rev A).md' 10.23.0.61:/media/fat/_mgl/__games/
     
     if platform == 'genesis':
-        mister_path = '/media/fat/_mgl/__games/Genesis/'
-        ssh_cmd('mkdir -p /media/fat/_mgl/__games/Genesis/')
+        mister_path = f'/media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/Genesis/'
+        ssh_cmd(f'mkdir -p /media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/Genesis/')
     elif platform == 'snes':
-        mister_path = '/media/fat/_mgl/__games/SNES/'
-        ssh_cmd('mkdir -p /media/fat/_mgl/__games/SNES/')
+        mister_path = f'/media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/SNES/'
+        ssh_cmd(f'mkdir -p /media/fat/{TARGET_GAME_FOLDER}/{TARGET_ROM_SUB}/SNES/')
 
     ssh_scp(rom_path, mister_path)
 
 def play_rom(platform, rom_path, mgl):
     #plink -batch -l root -pw 1 10.23.0.61 'echo "load_core /media/fat/_mgl/Sonic the Hedgehog 2.mgl" > /dev/MiSTer_cmd'
-    cmd="echo \"load_core /media/fat/_mgl/" + f'{mgl}' + "\" > /dev/MiSTer_cmd"
+    cmd="echo \"load_core /media/fat/" + f'{TARGET_GAME_FOLDER}' + "/" + f'{mgl}' + "\" > /dev/MiSTer_cmd"
     print(cmd)
 
     if platform == 'genesis':
@@ -131,6 +143,7 @@ def launch_rom(platform, rom_path):
 def main():
     args = parse_arguments()
     load_config()
+    print(f'MiSTer IP address: {MISTER_IP}')
 
     launch_rom(args.p, args.r)
 
