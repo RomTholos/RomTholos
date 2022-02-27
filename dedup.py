@@ -175,7 +175,14 @@ def action_cache_update(cache_path, file_list):
 
         #file_tuple = (filepath, filesize, c_time, m_time, inode)
         if str(file[0]) in cache['files'].keys():
-            file_list.remove(file)
+            t = str(file[0])
+            r = True
+            print(cache['files'][t])
+            for n in range(1, 5, 1):
+                if not file[n] == cache['files'][t][n-1] and r == True:
+                    r = False
+            if r == True:
+                file_list.remove(file)
 
     if len(file_list) >= 1:
         cache = hash_files(file_list, cache)
@@ -210,7 +217,14 @@ def action_inplace(file_path, file_list, cache_path=None, output=None):
         path = file[0]
 
         if str(path) in cache['files'].keys():
-            file_list_hash.remove(file)
+            t = str(path)
+            r = True
+            print(cache['files'][t])
+            for n in range(1, 5, 1):
+                if not file[n] == cache['files'][t][n-1] and r == True:
+                    r = False
+            if r == True:
+                file_list_hash.remove(file)
 
     # Hash all other
     if len(file_list_hash) >= 1:
