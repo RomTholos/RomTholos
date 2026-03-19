@@ -123,6 +123,7 @@ def load_dat_to_db(dat_path: Path, db: CacheDB) -> str:
                 "md5": (rom.get("md5", "") or "").upper(),
                 "sha1": (rom.get("sha1", "") or "").upper(),
                 "sha256": (rom.get("sha256", "") or "").upper(),
+                "blake3": (rom.get("blake3", "") or "").upper(),
             })
 
     db.load_dat(str(dat_path), system, entries)
@@ -173,7 +174,7 @@ def match_dat(dat_path: Path, db: CacheDB) -> list[MatchOp]:
         rom_size = entry["rom_size"]
 
         # Check if already in romroot
-        for ht in ("sha1", "md5", "crc32"):
+        for ht in ("sha1", "md5", "sha256", "blake3", "crc32"):
             hv = entry[ht]
             if hv:
                 existing = db.find_in_romroot(ht, hv)
@@ -195,7 +196,7 @@ def match_dat(dat_path: Path, db: CacheDB) -> list[MatchOp]:
         else:
             # Try matching by hash — prefer sha1, then md5, then crc32
             matched = False
-            for ht in ("sha1", "md5", "crc32", "sha256"):
+            for ht in ("sha1", "md5", "sha256", "blake3", "crc32"):
                 hv = entry[ht]
                 if not hv:
                     continue

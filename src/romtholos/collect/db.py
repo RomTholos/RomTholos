@@ -9,7 +9,10 @@ import contextlib
 import sqlite3
 from pathlib import Path
 
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
+
+# Canonical hash types — used for assertions and iteration across all stages.
+HASH_TYPES: tuple[str, ...] = ("crc32", "md5", "sha1", "sha256", "blake3")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS scanned_files (
@@ -50,6 +53,7 @@ CREATE TABLE IF NOT EXISTS dat_entries (
     md5         TEXT,
     sha1        TEXT,
     sha256      TEXT,
+    blake3      TEXT,
     PRIMARY KEY (dat_path, game_name, rom_name)
 );
 
@@ -78,16 +82,26 @@ CREATE TABLE IF NOT EXISTS romroot_files (
     PRIMARY KEY (path, rom_name)
 );
 
-CREATE INDEX IF NOT EXISTS idx_scanned_sha1 ON scanned_files(sha1);
-CREATE INDEX IF NOT EXISTS idx_scanned_md5 ON scanned_files(md5);
 CREATE INDEX IF NOT EXISTS idx_scanned_crc32 ON scanned_files(crc32);
-CREATE INDEX IF NOT EXISTS idx_archive_sha1 ON archive_contents(sha1);
-CREATE INDEX IF NOT EXISTS idx_archive_md5 ON archive_contents(md5);
+CREATE INDEX IF NOT EXISTS idx_scanned_md5 ON scanned_files(md5);
+CREATE INDEX IF NOT EXISTS idx_scanned_sha1 ON scanned_files(sha1);
+CREATE INDEX IF NOT EXISTS idx_scanned_sha256 ON scanned_files(sha256);
+CREATE INDEX IF NOT EXISTS idx_scanned_blake3 ON scanned_files(blake3);
 CREATE INDEX IF NOT EXISTS idx_archive_crc32 ON archive_contents(crc32);
-CREATE INDEX IF NOT EXISTS idx_dat_sha1 ON dat_entries(sha1);
-CREATE INDEX IF NOT EXISTS idx_dat_md5 ON dat_entries(md5);
+CREATE INDEX IF NOT EXISTS idx_archive_md5 ON archive_contents(md5);
+CREATE INDEX IF NOT EXISTS idx_archive_sha1 ON archive_contents(sha1);
+CREATE INDEX IF NOT EXISTS idx_archive_sha256 ON archive_contents(sha256);
+CREATE INDEX IF NOT EXISTS idx_archive_blake3 ON archive_contents(blake3);
 CREATE INDEX IF NOT EXISTS idx_dat_crc32 ON dat_entries(crc32);
+CREATE INDEX IF NOT EXISTS idx_dat_md5 ON dat_entries(md5);
+CREATE INDEX IF NOT EXISTS idx_dat_sha1 ON dat_entries(sha1);
+CREATE INDEX IF NOT EXISTS idx_dat_sha256 ON dat_entries(sha256);
+CREATE INDEX IF NOT EXISTS idx_dat_blake3 ON dat_entries(blake3);
+CREATE INDEX IF NOT EXISTS idx_romroot_crc32 ON romroot_files(crc32);
+CREATE INDEX IF NOT EXISTS idx_romroot_md5 ON romroot_files(md5);
 CREATE INDEX IF NOT EXISTS idx_romroot_sha1 ON romroot_files(sha1);
+CREATE INDEX IF NOT EXISTS idx_romroot_sha256 ON romroot_files(sha256);
+CREATE INDEX IF NOT EXISTS idx_romroot_blake3 ON romroot_files(blake3);
 CREATE INDEX IF NOT EXISTS idx_romroot_game ON romroot_files(system, game_name);
 """
 
@@ -267,7 +281,7 @@ class CacheDB:
         self, hash_type: str, hash_value: str
     ) -> list[sqlite3.Row]:
         """Find archive content entries matching a hash value."""
-        assert hash_type in ("crc32", "md5", "sha1", "sha256", "blake3")
+        assert hash_type in HASH_TYPES
         cur = self._conn.execute(
             f"SELECT * FROM archive_contents WHERE {hash_type} = ? COLLATE NOCASE",
             (hash_value,),
@@ -295,7 +309,7 @@ class CacheDB:
         """Load DAT entries into the cache.
 
         entries: list of dicts with keys: game_name, rom_name, rom_size,
-        crc32, md5, sha1, sha256
+        crc32, md5, sha1, sha256, blake3
         """
         # Clear existing entries for this DAT
         self._conn.execute(
@@ -306,12 +320,12 @@ class CacheDB:
             self._conn.execute(
                 """INSERT INTO dat_entries
                    (dat_path, system, game_name, rom_name, rom_size,
-                    crc32, md5, sha1, sha256)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    crc32, md5, sha1, sha256, blake3)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (dat_path, system, entry["game_name"], entry["rom_name"],
                  entry.get("rom_size"), entry.get("crc32", ""),
                  entry.get("md5", ""), entry.get("sha1", ""),
-                 entry.get("sha256", "")),
+                 entry.get("sha256", ""), entry.get("blake3", "")),
             )
 
         self._conn.commit()
@@ -327,7 +341,7 @@ class CacheDB:
 
     def find_by_hash(self, hash_type: str, hash_value: str) -> list[sqlite3.Row]:
         """Find scanned files matching a hash value."""
-        assert hash_type in ("crc32", "md5", "sha1", "sha256", "blake3")
+        assert hash_type in HASH_TYPES
         cur = self._conn.execute(
             f"SELECT * FROM scanned_files WHERE {hash_type} = ? COLLATE NOCASE",
             (hash_value,),
@@ -418,7 +432,7 @@ class CacheDB:
         self, hash_type: str, hash_value: str
     ) -> sqlite3.Row | None:
         """Check if a hash already exists in romroot."""
-        assert hash_type in ("crc32", "md5", "sha1", "sha256", "blake3")
+        assert hash_type in HASH_TYPES
         cur = self._conn.execute(
             f"SELECT * FROM romroot_files WHERE {hash_type} = ? COLLATE NOCASE",
             (hash_value,),

@@ -5,7 +5,9 @@ Supports: zip, 7z, rar, gz, bz2, xz, zstd, tar (and tar.* combos),
 Nested archives are extracted recursively up to a configurable depth.
 
 Security:
-- Compression ratio limit (default 200:1) — catches zip bombs
+- Compression ratio limit (default 200:1) for standard archives — catches zip bombs
+- Disc image extractors (dolphin, dimg) skip ratio checks — output size is
+  determined by the medium (CD/DVD/BD), not content. Absolute size limit applies.
 - Maximum total extracted size limit
 - Maximum nesting depth
 - Path traversal prevention (no ../ in archive entries)
@@ -286,9 +288,11 @@ def _extract_dolphin(archive: Path, target: Path, limits: ExtractionLimits) -> N
         raise ExtractionError(f"dolphin-tool produced no output for {archive}")
 
     iso_size = out_path.stat().st_size
-    archive_size = archive.stat().st_size
 
-    _check_ratio(archive_size, iso_size, limits)
+    # Skip ratio check for disc images — they always decompress to full disc size
+    # (GC: 1.4 GiB, Wii SL: 4.7 GiB, Wii DL: 8.5 GiB) regardless of actual
+    # content, so small games compress extremely well (2000:1+) legitimately.
+    # The absolute size limit is sufficient protection.
 
     if iso_size > limits.max_total_bytes:
         out_path.unlink()
