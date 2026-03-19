@@ -283,7 +283,7 @@ class CacheDB:
         """Find archive content entries matching a hash value."""
         assert hash_type in HASH_TYPES
         cur = self._conn.execute(
-            f"SELECT * FROM archive_contents WHERE {hash_type} = ? COLLATE NOCASE",
+            f"SELECT * FROM archive_contents WHERE {hash_type} = ?",
             (hash_value,),
         )
         return cur.fetchall()
@@ -343,7 +343,7 @@ class CacheDB:
         """Find scanned files matching a hash value."""
         assert hash_type in HASH_TYPES
         cur = self._conn.execute(
-            f"SELECT * FROM scanned_files WHERE {hash_type} = ? COLLATE NOCASE",
+            f"SELECT * FROM scanned_files WHERE {hash_type} = ?",
             (hash_value,),
         )
         return cur.fetchall()
@@ -434,7 +434,7 @@ class CacheDB:
         """Check if a hash already exists in romroot."""
         assert hash_type in HASH_TYPES
         cur = self._conn.execute(
-            f"SELECT * FROM romroot_files WHERE {hash_type} = ? COLLATE NOCASE",
+            f"SELECT * FROM romroot_files WHERE {hash_type} = ?",
             (hash_value,),
         )
         return cur.fetchone()
