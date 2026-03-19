@@ -66,6 +66,12 @@ _ARCHIVE_EXTENSIONS: set[str] = {
 }
 
 
+# Files per transaction — limits progress loss on interrupt.
+# Future: parallel scanning (--workers N) could further improve throughput on
+# network mounts where CIFS can pipeline multiple requests.
+_COMMIT_CHUNK = 50
+
+
 def _is_scannable(path: Path) -> bool:
     """Check if a file should be scanned."""
     name = path.name.lower()
@@ -176,124 +182,129 @@ def _scan_romroot(
             st = p.stat()
             file_stats.append((p, st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino))
 
-    with db.batch():
-        for filepath, size, mtime_ns, ctime_ns, inode in file_stats:
-            stats.files_total += 1
-            path_str = str(filepath)
+    total = len(file_stats)
+    for chunk_start in range(0, total, _COMMIT_CHUNK):
+        chunk_end = min(chunk_start + _COMMIT_CHUNK, total)
+        with db.batch():
+            for pos in range(chunk_start, chunk_end):
+                filepath, size, mtime_ns, ctime_ns, inode = file_stats[pos]
+                file_num = pos + 1
+                stats.files_total += 1
+                path_str = str(filepath)
 
-            # Stat-cache: skip if DB already has this file unchanged
-            if not force_rescan and db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode):
-                stats.files_skipped += 1
-                continue
-
-            sidecar_path = resolver.sidecar_path(filepath)
-
-            if not force_rescan and sidecar_path in sidecar_files:
-                # Fast path: load from sidecar
-                try:
-                    sidecar = read_sidecar(sidecar_path)
-
-                    # Store container in scanned_files
-                    db.upsert_scanned(
-                        path=path_str,
-                        size=size,
-                        mtime_ns=mtime_ns,
-                        ctime_ns=ctime_ns,
-                        inode=inode,
-                        source_type="romroot",
-                        crc32="",
-                        md5="",
-                        sha1="",
-                        sha256="",
-                        blake3=sidecar.container_blake3,
-                        is_archive=False,
-                        scanned_at=now,
-                    )
-
-                    # Store file entries in archive_contents
-                    # and populate romroot_files for match phase
-                    rel = filepath.relative_to(source)
-                    system = rel.parts[0] if len(rel.parts) > 1 else ""
-
-                    for entry in sidecar.files:
-                        db.upsert_archive_content(
-                            archive_path=path_str,
-                            entry_name=entry.path,
-                            entry_size=entry.size,
-                            crc32=entry.crc32,
-                            md5=entry.md5,
-                            sha1=entry.sha1,
-                            sha256=entry.sha256,
-                            blake3=entry.blake3,
-                        )
-
-                        game_name = strip_archive_extension(filepath.name)
-                        db.upsert_romroot(
-                            path=path_str,
-                            system=system,
-                            game_name=game_name,
-                            rom_name=entry.path,
-                            crc32=entry.crc32,
-                            md5=entry.md5,
-                            sha1=entry.sha1,
-                            sha256=entry.sha256,
-                            blake3=entry.blake3,
-                            rscf_path=str(sidecar_path),
-                        )
-
-                    stats.files_from_sidecar += 1
-                    sidecar_files.discard(sidecar_path)
+                # Stat-cache: skip if DB already has this file unchanged
+                if not force_rescan and db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode):
+                    stats.files_skipped += 1
                     continue
 
-                except RscfError as e:
-                    stats.warn(
-                        f"corrupt sidecar {sidecar_path.name}: {e}"
-                    )
-                    # Fall through to hash
+                sidecar_path = resolver.sidecar_path(filepath)
 
-            # Slow path: hash the file
-            print(
-                f"  Hashing: {filepath.name} ({size:,} bytes)",
-                file=sys.stderr,
-            )
-            hashes = hash_file(filepath)
+                if not force_rescan and sidecar_path in sidecar_files:
+                    # Fast path: load from sidecar
+                    try:
+                        sidecar = read_sidecar(sidecar_path)
 
-            db.upsert_scanned(
-                path=path_str,
-                size=size,
-                mtime_ns=mtime_ns,
-                ctime_ns=ctime_ns,
-                inode=inode,
-                source_type="romroot",
-                crc32=hashes.crc32,
-                md5=hashes.md5,
-                sha1=hashes.sha1,
-                sha256=hashes.sha256,
-                blake3=hashes.blake3,
-                is_archive=False,
-                scanned_at=now,
-            )
-            stats.files_hashed += 1
-
-            if force_rescan:
-                # Rebuild sidecar (use already-collected stat)
-                new_sidecar = Sidecar(
-                    container_blake3=hashes.blake3,
-                    container_size=size,
-                    container_mtime_ns=mtime_ns,
-                    container_ctime_ns=ctime_ns,
-                    container_inode=inode,
-                    renderer="",
-                    files=[
-                        FileEntry.from_hashes(
-                            path=filepath.name,
+                        # Store container in scanned_files
+                        db.upsert_scanned(
+                            path=path_str,
                             size=size,
-                            hashes=hashes,
-                        ),
-                    ],
+                            mtime_ns=mtime_ns,
+                            ctime_ns=ctime_ns,
+                            inode=inode,
+                            source_type="romroot",
+                            crc32="",
+                            md5="",
+                            sha1="",
+                            sha256="",
+                            blake3=sidecar.container_blake3,
+                            is_archive=False,
+                            scanned_at=now,
+                        )
+
+                        # Store file entries in archive_contents
+                        # and populate romroot_files for match phase
+                        rel = filepath.relative_to(source)
+                        system = rel.parts[0] if len(rel.parts) > 1 else ""
+
+                        for entry in sidecar.files:
+                            db.upsert_archive_content(
+                                archive_path=path_str,
+                                entry_name=entry.path,
+                                entry_size=entry.size,
+                                crc32=entry.crc32,
+                                md5=entry.md5,
+                                sha1=entry.sha1,
+                                sha256=entry.sha256,
+                                blake3=entry.blake3,
+                            )
+
+                            game_name = strip_archive_extension(filepath.name)
+                            db.upsert_romroot(
+                                path=path_str,
+                                system=system,
+                                game_name=game_name,
+                                rom_name=entry.path,
+                                crc32=entry.crc32,
+                                md5=entry.md5,
+                                sha1=entry.sha1,
+                                sha256=entry.sha256,
+                                blake3=entry.blake3,
+                                rscf_path=str(sidecar_path),
+                            )
+
+                        stats.files_from_sidecar += 1
+                        sidecar_files.discard(sidecar_path)
+                        continue
+
+                    except RscfError as e:
+                        stats.warn(
+                            f"corrupt sidecar {sidecar_path.name}: {e}"
+                        )
+                        # Fall through to hash
+
+                # Slow path: hash the file
+                print(
+                    f"  [{file_num}/{total}] Hashing: {filepath.name} ({size:,} bytes)",
+                    file=sys.stderr,
                 )
-                write_sidecar(new_sidecar, sidecar_path)
-                sidecar_files.discard(sidecar_path)
+                hashes = hash_file(filepath)
+
+                db.upsert_scanned(
+                    path=path_str,
+                    size=size,
+                    mtime_ns=mtime_ns,
+                    ctime_ns=ctime_ns,
+                    inode=inode,
+                    source_type="romroot",
+                    crc32=hashes.crc32,
+                    md5=hashes.md5,
+                    sha1=hashes.sha1,
+                    sha256=hashes.sha256,
+                    blake3=hashes.blake3,
+                    is_archive=False,
+                    scanned_at=now,
+                )
+                stats.files_hashed += 1
+
+                if force_rescan:
+                    # Rebuild sidecar (use already-collected stat)
+                    new_sidecar = Sidecar(
+                        container_blake3=hashes.blake3,
+                        container_size=size,
+                        container_mtime_ns=mtime_ns,
+                        container_ctime_ns=ctime_ns,
+                        container_inode=inode,
+                        renderer="",
+                        files=[
+                            FileEntry.from_hashes(
+                                path=filepath.name,
+                                size=size,
+                                hashes=hashes,
+                            ),
+                        ],
+                    )
+                    write_sidecar(new_sidecar, sidecar_path)
+                    sidecar_files.discard(sidecar_path)
 
     # Orphaned sidecars: .rscf files with no corresponding source file
     for orphan in sidecar_files:
@@ -333,69 +344,74 @@ def _scan_untrusted(
             st = p.stat()
             file_stats.append((p, st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino))
 
-    with db.batch():
-        for filepath, size, mtime_ns, ctime_ns, inode in file_stats:
-            stats.files_total += 1
+    total = len(file_stats)
+    for chunk_start in range(0, total, _COMMIT_CHUNK):
+        chunk_end = min(chunk_start + _COMMIT_CHUNK, total)
+        with db.batch():
+            for pos in range(chunk_start, chunk_end):
+                filepath, size, mtime_ns, ctime_ns, inode = file_stats[pos]
+                file_num = pos + 1
+                stats.files_total += 1
 
-            path_str = str(filepath)
-            is_archive = _is_archive(filepath)
+                path_str = str(filepath)
+                is_archive = _is_archive(filepath)
 
-            # Archive cache check
-            if is_archive:
-                if (db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode)
-                        and db.has_archive_contents(path_str)):
-                    stats.files_skipped += 1
-                    continue
-            else:
-                # Plain file cache check
-                if db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode):
-                    stats.files_skipped += 1
-                    continue
+                # Archive cache check
+                if is_archive:
+                    if (db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode)
+                            and db.has_archive_contents(path_str)):
+                        stats.files_skipped += 1
+                        continue
+                else:
+                    # Plain file cache check
+                    if db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode):
+                        stats.files_skipped += 1
+                        continue
 
-            print(
-                f"  Hashing: {filepath.name} ({size:,} bytes)",
-                file=sys.stderr,
-            )
-            hashes = hash_file(filepath)
-
-            # Mid-download detection: stat after hashing, compare against
-            # walk-collected values
-            try:
-                post_st = filepath.stat()
-            except OSError:
-                stats.warn(f"file vanished during scan: {filepath.name}")
-                continue
-
-            if post_st.st_size != size or post_st.st_mtime_ns != mtime_ns:
-                stats.warn(
-                    f"file changed during scan (mid-download?): "
-                    f"{filepath.name}"
+                print(
+                    f"  [{file_num}/{total}] Hashing: {filepath.name} ({size:,} bytes)",
+                    file=sys.stderr,
                 )
-                continue
+                hashes = hash_file(filepath)
 
-            # Use post-hash stat for ctime/inode (most current)
-            db.upsert_scanned(
-                path=path_str,
-                size=post_st.st_size,
-                mtime_ns=post_st.st_mtime_ns,
-                ctime_ns=post_st.st_ctime_ns,
-                inode=post_st.st_ino,
-                source_type=source_type,
-                crc32=hashes.crc32,
-                md5=hashes.md5,
-                sha1=hashes.sha1,
-                sha256=hashes.sha256,
-                blake3=hashes.blake3,
-                is_archive=is_archive,
-                scanned_at=now,
-            )
-            stats.files_hashed += 1
+                # Mid-download detection: stat after hashing, compare against
+                # walk-collected values
+                try:
+                    post_st = filepath.stat()
+                except OSError:
+                    stats.warn(f"file vanished during scan: {filepath.name}")
+                    continue
 
-            # Extract and hash archive contents
-            if is_archive:
-                _extract_and_hash_archive(
-                    filepath, path_str, db, work_dir, limits, stats,
+                if post_st.st_size != size or post_st.st_mtime_ns != mtime_ns:
+                    stats.warn(
+                        f"file changed during scan (mid-download?): "
+                        f"{filepath.name}"
+                    )
+                    continue
+
+                # Use post-hash stat for ctime/inode (most current)
+                db.upsert_scanned(
+                    path=path_str,
+                    size=post_st.st_size,
+                    mtime_ns=post_st.st_mtime_ns,
+                    ctime_ns=post_st.st_ctime_ns,
+                    inode=post_st.st_ino,
+                    source_type=source_type,
+                    crc32=hashes.crc32,
+                    md5=hashes.md5,
+                    sha1=hashes.sha1,
+                    sha256=hashes.sha256,
+                    blake3=hashes.blake3,
+                    is_archive=is_archive,
+                    scanned_at=now,
                 )
+                stats.files_hashed += 1
+
+                # Extract and hash archive contents
+                if is_archive:
+                    _extract_and_hash_archive(
+                        filepath, path_str, db, work_dir, limits, stats,
+                    )
 
     return stats
 
