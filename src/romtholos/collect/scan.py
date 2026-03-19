@@ -82,12 +82,6 @@ def _is_archive(path: Path) -> bool:
     return path.suffix.lower() in _ARCHIVE_EXTENSIONS
 
 
-def _stat_fields(path: Path) -> tuple[int, int, int, int]:
-    """Return (size, mtime_ns, ctime_ns, inode) for a file."""
-    st = path.stat()
-    return st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino
-
-
 @dataclass
 class SourceScanStats:
     """Results from scanning a single source."""
@@ -160,30 +154,39 @@ def _scan_romroot(
 ) -> SourceScanStats:
     """Scan romroot by loading RSCF sidecars.
 
-    Fast path: read sidecar → load hashes into DB without re-hashing.
+    Stat-cache: if a file's (path, size, mtime_ns, ctime_ns, inode) matches
+    the DB, skip it entirely — no sidecar read needed.
+    Cold start: read sidecar → load hashes into DB without re-hashing.
     force_rescan: re-hash every file, rewrite sidecars, delete orphans.
     """
     stats = SourceScanStats(source_type="romroot")
     resolver = SidecarResolver(StorageMode.IN_TREE)
     now = datetime.now(timezone.utc).isoformat()
 
-    # Collect all files and sidecars
-    all_files: list[Path] = []
+    # Single-pass walk: collect (path, size, mtime_ns, ctime_ns, inode) tuples
+    file_stats: list[tuple[Path, int, int, int, int]] = []
     sidecar_files: set[Path] = set()
 
-    for f in sorted(source.rglob("*")):
-        if not f.is_file():
+    for p in sorted(source.glob("**/*")):
+        if not p.is_file():
             continue
-        if f.suffix == ".rscf":
-            sidecar_files.add(f)
+        if p.suffix == ".rscf":
+            sidecar_files.add(p)
         else:
-            all_files.append(f)
+            st = p.stat()
+            file_stats.append((p, st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino))
 
     with db.batch():
-        for filepath in all_files:
+        for filepath, size, mtime_ns, ctime_ns, inode in file_stats:
             stats.files_total += 1
+            path_str = str(filepath)
+
+            # Stat-cache: skip if DB already has this file unchanged
+            if not force_rescan and db.is_unchanged(path_str, size, mtime_ns, ctime_ns, inode):
+                stats.files_skipped += 1
+                continue
+
             sidecar_path = resolver.sidecar_path(filepath)
-            size, mtime_ns, ctime_ns, inode = _stat_fields(filepath)
 
             if not force_rescan and sidecar_path in sidecar_files:
                 # Fast path: load from sidecar
@@ -192,7 +195,7 @@ def _scan_romroot(
 
                     # Store container in scanned_files
                     db.upsert_scanned(
-                        path=str(filepath),
+                        path=path_str,
                         size=size,
                         mtime_ns=mtime_ns,
                         ctime_ns=ctime_ns,
@@ -214,7 +217,7 @@ def _scan_romroot(
 
                     for entry in sidecar.files:
                         db.upsert_archive_content(
-                            archive_path=str(filepath),
+                            archive_path=path_str,
                             entry_name=entry.path,
                             entry_size=entry.size,
                             crc32=entry.crc32,
@@ -224,14 +227,9 @@ def _scan_romroot(
                             blake3=entry.blake3,
                         )
 
-                        # Register in romroot_files so match finds
-                        # these as "in_romroot"
-                        # Game name = container filename stem (not entry path)
-                        # For archives: "Crash Bandicoot (USA).7z" → "Crash Bandicoot (USA)"
-                        # For single ROM: "game.zst" → "game"
                         game_name = strip_archive_extension(filepath.name)
                         db.upsert_romroot(
-                            path=str(filepath),
+                            path=path_str,
                             system=system,
                             game_name=game_name,
                             rom_name=entry.path,
@@ -261,7 +259,7 @@ def _scan_romroot(
             hashes = hash_file(filepath)
 
             db.upsert_scanned(
-                path=str(filepath),
+                path=path_str,
                 size=size,
                 mtime_ns=mtime_ns,
                 ctime_ns=ctime_ns,
@@ -278,19 +276,18 @@ def _scan_romroot(
             stats.files_hashed += 1
 
             if force_rescan:
-                # Rebuild sidecar
-                stat = filepath.stat()
+                # Rebuild sidecar (use already-collected stat)
                 new_sidecar = Sidecar(
                     container_blake3=hashes.blake3,
-                    container_size=stat.st_size,
-                    container_mtime_ns=stat.st_mtime_ns,
-                    container_ctime_ns=stat.st_ctime_ns,
-                    container_inode=stat.st_ino,
+                    container_size=size,
+                    container_mtime_ns=mtime_ns,
+                    container_ctime_ns=ctime_ns,
+                    container_inode=inode,
                     renderer="",
                     files=[
                         FileEntry.from_hashes(
                             path=filepath.name,
-                            size=stat.st_size,
+                            size=size,
                             hashes=hashes,
                         ),
                     ],
@@ -329,15 +326,17 @@ def _scan_untrusted(
     limits = ExtractionLimits()
     now = datetime.now(timezone.utc).isoformat()
 
-    files: list[Path] = sorted(
-        f for f in source.rglob("*") if f.is_file() and _is_scannable(f)
-    )
+    # Single-pass walk: collect (path, size, mtime_ns, ctime_ns, inode) tuples
+    file_stats: list[tuple[Path, int, int, int, int]] = []
+    for p in sorted(source.glob("**/*")):
+        if p.is_file() and _is_scannable(p):
+            st = p.stat()
+            file_stats.append((p, st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino))
 
     with db.batch():
-        for filepath in files:
+        for filepath, size, mtime_ns, ctime_ns, inode in file_stats:
             stats.files_total += 1
 
-            size, mtime_ns, ctime_ns, inode = _stat_fields(filepath)
             path_str = str(filepath)
             is_archive = _is_archive(filepath)
 
@@ -353,25 +352,21 @@ def _scan_untrusted(
                     stats.files_skipped += 1
                     continue
 
-            # Mid-download detection: stat before hashing
-            pre_size, pre_mtime = size, mtime_ns
-
             print(
                 f"  Hashing: {filepath.name} ({size:,} bytes)",
                 file=sys.stderr,
             )
             hashes = hash_file(filepath)
 
-            # Mid-download detection: stat after hashing
+            # Mid-download detection: stat after hashing, compare against
+            # walk-collected values
             try:
-                post_size, post_mtime, post_ctime, post_inode = (
-                    _stat_fields(filepath)
-                )
+                post_st = filepath.stat()
             except OSError:
                 stats.warn(f"file vanished during scan: {filepath.name}")
                 continue
 
-            if post_size != pre_size or post_mtime != pre_mtime:
+            if post_st.st_size != size or post_st.st_mtime_ns != mtime_ns:
                 stats.warn(
                     f"file changed during scan (mid-download?): "
                     f"{filepath.name}"
@@ -381,10 +376,10 @@ def _scan_untrusted(
             # Use post-hash stat for ctime/inode (most current)
             db.upsert_scanned(
                 path=path_str,
-                size=post_size,
-                mtime_ns=post_mtime,
-                ctime_ns=post_ctime,
-                inode=post_inode,
+                size=post_st.st_size,
+                mtime_ns=post_st.st_mtime_ns,
+                ctime_ns=post_st.st_ctime_ns,
+                inode=post_st.st_ino,
                 source_type=source_type,
                 crc32=hashes.crc32,
                 md5=hashes.md5,

@@ -132,6 +132,28 @@ class TestRomrootScan:
             assert stats.files_hashed == 1
             assert stats.files_from_sidecar == 0
 
+    def test_romroot_cache_skip(self, tmp_path: Path):
+        """Unchanged romroot files skip sidecar read on second scan."""
+        romroot = tmp_path / "romroot" / "Test System"
+        work = tmp_path / "work"
+        db_path = tmp_path / "test.db"
+
+        rom = _make_rom(romroot / "game.gba", b"ROMDATA" * 100)
+        _make_sidecar(rom)
+
+        sources = [SourceDir(path=tmp_path / "romroot", source_type="romroot")]
+        with CacheDB(db_path) as db:
+            # First scan — loads from sidecar
+            r1 = scan_all(sources, db, work)
+            assert r1[str(tmp_path / "romroot")].files_from_sidecar == 1
+            assert r1[str(tmp_path / "romroot")].files_skipped == 0
+
+            # Second scan — stat matches DB, skip entirely
+            r2 = scan_all(sources, db, work)
+            assert r2[str(tmp_path / "romroot")].files_skipped == 1
+            assert r2[str(tmp_path / "romroot")].files_from_sidecar == 0
+            assert r2[str(tmp_path / "romroot")].files_hashed == 0
+
     def test_no_sidecar_hashes_file(self, tmp_path: Path):
         """Romroot file without sidecar gets hashed."""
         romroot = tmp_path / "romroot" / "Test System"
