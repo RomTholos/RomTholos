@@ -15,15 +15,24 @@ Source types:                     Local SSD:                    NAS/target:
 
 ### Source Types
 
-Three source types with different scan behaviors:
+| Source type | YAML mode | RSCF sidecars | Scan behavior | Writes | Orphan cleanup |
+|-------------|-----------|---------------|---------------|--------|----------------|
+| `romroot` | (implicit) | Yes (written by execute) | Stat-cache → sidecar → hash fallback | Execute writes files + sidecars | `--force-rescan` deletes orphan `.rscf` |
+| `ingest` | `read-write` | Planned (written by scan) | Stat-cache → sidecar → hash fallback | Scan writes sidecars; future: disposal | Scan deletes orphan `.rscf` |
+| `readonly` | `read-only` | No (never writes) | Stat-cache → hash | Never | N/A |
+| `disposal` | (future) | Yes (same as ingest) | Same as ingest | Deletes source after verified collection | Same as ingest |
 
-| Source type | Scan behavior | Modify |
-|-------------|---------------|--------|
-| `romroot` | Load hashes from RSCF sidecars (fast path). Populates `romroot_files` table. | Only with `--force-rescan` |
-| `ingest` | Hash everything. Mid-download detection (stat before+after). | Never during scan |
-| `readonly` | Hash everything. Mid-download detection. | Never |
+**Romroot** is automatically added as a source from `paths.romroot` and any `romroot_overrides`. Explicit sources use `mode: read-only` or `mode: read-write`.
 
-Romroot is automatically added as a source from the config `paths.romroot` and any `romroot_overrides`. Explicit sources use `mode: read-only` (→ readonly) or `mode: read-write` (→ ingest).
+**Stat-cache** (all types): if a file's `(path, size, mtime_ns, ctime_ns, inode)` matches the DB from a previous scan, it is skipped entirely — no sidecar read, no hashing. This makes warm-DB scans near-instant regardless of source type.
+
+**RSCF sidecars** (romroot + ingest): sidecars store container metadata and all 5 content hashes. On cold DB (first run or after DB loss), sidecars provide instant hash recovery without re-reading file contents. For romroot, sidecars are written by the execute phase. For ingest, sidecars are written by the scan phase after hashing (planned, not yet implemented).
+
+**Orphan sidecar cleanup**: For any source type that writes sidecars, orphaned `.rscf` files (sidecar with no corresponding source file) must be detected and cleaned. Romroot cleans orphans only during `--force-rescan`. Ingest should clean orphans during normal scan (since it owns the directory).
+
+**Disposal** (future): extends ingest with post-collection deletion. A source file may only be deleted when: (1) all its content hashes are verified in romroot, (2) the romroot copy has been BLAKE3-verified after write, (3) the RSCF sidecar is written and verified. This ensures no data loss even on CIFS/network errors.
+
+**Current limitation**: `ingest` and `readonly` have identical scan behavior — ingest does not yet write sidecars. The `source_modes` dict is threaded to `execute_plan()` but not acted upon.
 
 ### Work directory
 
@@ -75,10 +84,12 @@ Source (readonly)     Work dir (SSD)                  Target romroot (NAS)
 
 Walks all configured sources. Different behavior per source type.
 
+**Walk phase** (all source types): single-pass `glob("**/*")` collecting `(path, size, mtime_ns, ctime_ns, inode)` tuples. One stat per file. Sidecars (`.rscf`) collected separately for romroot/ingest.
+
 **Romroot scan:**
 ```
-for each file in romroot (excluding .rscf files):
-    resolve sidecar path (file.rscf)
+for each file (chunked, 50 per transaction):
+    if stat matches DB (is_unchanged): skip           ← stat-cache, zero I/O
 
     if sidecar exists and not force_rescan:
         read_sidecar() → load container + file entry hashes into DB
@@ -87,26 +98,25 @@ for each file in romroot (excluding .rscf files):
 
     if no sidecar or force_rescan or corrupt:
         hash the file → record in scanned_files
-        if force_rescan: rewrite sidecar, delete orphans
+        if force_rescan: rewrite sidecar
 
     detect orphaned sidecars (.rscf with no source file) → warn
+    force_rescan: delete orphan sidecars
 ```
 
 **Untrusted source scan (ingest + readonly):**
 ```
-for each scannable file:
-    stat → (size, mtime_ns, ctime_ns, inode)
+for each scannable file (chunked, 50 per transaction):
+    if archive and stat matches DB and archive_contents exist: skip
+    elif plain file and stat matches DB: skip
 
-    if archive and unchanged in DB and archive_contents exist:
-        skip (archive cache hit)
-    elif plain file and unchanged in DB:
-        skip
+    [N/total] hash_file()
 
     mid-download detection:
-        stat before hash, hash, stat after hash
+        compare post-hash stat against walk-collected stat
         if size or mtime changed → warn + skip
 
-    hash_file() → record in scanned_files
+    record in scanned_files
 
     if archive:
         delete stale archive_contents
@@ -114,6 +124,8 @@ for each scannable file:
         hash each extracted file → record in archive_contents (all 5 hashes)
         clean extraction subdirectory
 ```
+
+**Chunked commits**: transactions commit every 50 files instead of all-or-nothing per source. Limits progress loss on interrupt to at most one chunk.
 
 **Dolphin disc images (RVZ, GCZ, WIA):**
 
@@ -126,7 +138,9 @@ Plain `.iso` files are NOT treated as archives — they match DATs directly as p
 - Archive contents are fully hashed (extracted and hashed, not just peeked)
 - Dolphin disc images extracted via `dolphin-tool` to reveal inner ISO hashes
 - Archive cache: unchanged archives skip re-extraction on subsequent scans
-- All DB writes wrapped in batch transactions for performance
+- DB writes chunked (50 files per transaction) — limits progress loss on interrupt
+- Disc image extractors (dolphin, dimg) skip compression ratio checks — output
+  size is medium-determined, not content-determined. Absolute size limit (50 GiB) applies.
 
 **Output:** DB cache populated with:
 - `scanned_files`: path, size, mtime_ns, ctime_ns, inode, source_type, 5 hashes
@@ -142,10 +156,10 @@ for each selection DAT:
     parse DAT XML → load entries into dat_entries table
 
     for each ROM entry:
-        check romroot_files by hash (sha1 → md5 → crc32) → in_romroot
+        check romroot_files by hash (sha1 → md5 → sha256 → blake3 → crc32) → in_romroot
 
         if not in romroot:
-            search scanned_files by hash → matched (plain or archive)
+            search scanned_files by hash (same order) → matched (plain or archive)
             search archive_contents by hash → matched (archive_content)
 
         if no match:
@@ -269,6 +283,7 @@ CREATE TABLE dat_entries (
     md5         TEXT,
     sha1        TEXT,
     sha256      TEXT,
+    blake3      TEXT,
     PRIMARY KEY (dat_path, game_name, rom_name)
 );
 
@@ -296,17 +311,12 @@ CREATE TABLE romroot_files (
     rscf_path   TEXT
 );
 
--- Hash lookup indexes
-CREATE INDEX idx_scanned_sha1 ON scanned_files(sha1);
-CREATE INDEX idx_scanned_md5 ON scanned_files(md5);
-CREATE INDEX idx_scanned_crc32 ON scanned_files(crc32);
-CREATE INDEX idx_archive_sha1 ON archive_contents(sha1);
-CREATE INDEX idx_archive_md5 ON archive_contents(md5);
-CREATE INDEX idx_archive_crc32 ON archive_contents(crc32);
-CREATE INDEX idx_dat_sha1 ON dat_entries(sha1);
-CREATE INDEX idx_dat_md5 ON dat_entries(md5);
-CREATE INDEX idx_dat_crc32 ON dat_entries(crc32);
-CREATE INDEX idx_romroot_sha1 ON romroot_files(sha1);
+-- Hash lookup indexes (all 5 types on all tables for flexible matching)
+CREATE INDEX idx_scanned_{crc32,md5,sha1,sha256,blake3} ON scanned_files(...);
+CREATE INDEX idx_archive_{crc32,md5,sha1,sha256,blake3} ON archive_contents(...);
+CREATE INDEX idx_dat_{crc32,md5,sha1,sha256,blake3} ON dat_entries(...);
+CREATE INDEX idx_romroot_{crc32,md5,sha1,sha256,blake3} ON romroot_files(...);
+CREATE INDEX idx_romroot_game ON romroot_files(system, game_name);
 ```
 
 ## Configuration
@@ -387,7 +397,7 @@ Priority: gdi > cd > dvd > rom.
 - Per-game work subdirs cleaned after each game; extraction cache cleaned after all games
 - Compressed output verified after copy to target (BLAKE3 comparison)
 - Corrupt target files deleted, not left as partial state
-- Archive extraction has zip bomb protection (ratio, depth, size limits)
+- Archive extraction has zip bomb protection (ratio limit for standard archives, absolute size limit for disc images, depth limit)
 - Single-file decompression streams to disk (no OOM on large files)
 - Mid-download detection prevents recording unstable files
 - DB cache is disposable — rebuild from `romroot/*.rscf` + selection DATs
