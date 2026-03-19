@@ -1,0 +1,337 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "annotated-doc"
+version = "0.0.4"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/fbc/da96e87e9c92a/annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/571/ac1dc6991c450/annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320" },
+]
+
+[[package]]
+name = "blake3"
+version = "1.0.8"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/513/cc7f0f5a7c035/blake3-1.0.8.tar.gz", hash = "sha256:513cc7f0f5a7c035812604c2c852a0c1468311345573de647e310aca4ab165ba" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/d8d/a4233984d5147/blake3-1.0.8-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:d8da4233984d51471bd4e4366feda1d90d781e712e0a504ea54b1f2b3577557b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/125/7be19f2d381c8/blake3-1.0.8-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1257be19f2d381c868a34cc822fc7f12f817ddc49681b6d1a2790bfbda1a9865" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/269/f255b110840e5/blake3-1.0.8-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:269f255b110840e52b6ce9db02217e39660ebad3e34ddd5bca8b8d378a77e4e1" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/66c/a28a673025c40/blake3-1.0.8-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:66ca28a673025c40db3eba21a9cac52f559f83637efa675b3f6bd8683f0415f3" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/bcb/04966537777af/blake3-1.0.8-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:bcb04966537777af56c1f399b35525aa70a1225816e121ff95071c33c0f7abca" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e5b/5da177d62cc4b/blake3-1.0.8-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:e5b5da177d62cc4b7edf0cea08fe4dec960c9ac27f916131efa890a01f747b93" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/382/09b10482c97e1/blake3-1.0.8-cp312-cp312-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:38209b10482c97e151681ea3e91cc7141f56adbbf4820a7d701a923124b41e6a" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/504/d1399b7fb91df/blake3-1.0.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:504d1399b7fb91dfe5c25722d2807990493185faa1917456455480c36867adb5" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/c84/af132aa09abea/blake3-1.0.8-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:c84af132aa09abeadf9a0118c8fb26f4528f3f42c10ef8be0fcf31c478774ec4" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a25/db3d36b55f5ed/blake3-1.0.8-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:a25db3d36b55f5ed6a86470155cc749fc9c5b91c949b8d14f48658f9d960d9ec" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e0f/ee93d5adcd443/blake3-1.0.8-cp312-cp312-win32.whl", hash = "sha256:e0fee93d5adcd44378b008c147e84f181f23715307a64f7b3db432394bbfce8b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/6a6/eafc29e4f478d/blake3-1.0.8-cp312-cp312-win_amd64.whl", hash = "sha256:6a6eafc29e4f478d365a87d2f25782a521870c8514bb43734ac85ae9be71caf7" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/46d/c20976bd6c235/blake3-1.0.8-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:46dc20976bd6c235959ef0246ec73420d1063c3da2839a9c87ca395cf1fd7943" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/d17/eb6382634b3a5/blake3-1.0.8-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:d17eb6382634b3a5bc0c0e0454d5265b0becaeeadb6801ed25150b39a999d0cc" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/19f/c6f2b7edab8ac/blake3-1.0.8-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:19fc6f2b7edab8acff6895fc6e38c19bd79f4c089e21153020c75dfc7397d52d" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4f5/4cff7f15d91dc/blake3-1.0.8-cp313-cp313-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:4f54cff7f15d91dc78a63a2dd02a3dccdc932946f271e2adb4130e0b4cf608ba" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e7e/12a777f6b798e/blake3-1.0.8-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e7e12a777f6b798eb8d06f875d6e108e3008bd658d274d8c676dcf98e0f10537" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/ddf/c59b0176fb311/blake3-1.0.8-cp313-cp313-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:ddfc59b0176fb31168f08d5dd536e69b1f4f13b5a0f4b0c3be1003efd47f9308" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a23/36d5b2a801a72/blake3-1.0.8-cp313-cp313-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:a2336d5b2a801a7256da21150348f41610a6c21dae885a3acb1ebbd7333d88d8" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e40/72196547484c9/blake3-1.0.8-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e4072196547484c95a5a09adbb952e9bb501949f03f9e2a85e7249ef85faaba8" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/0ea/b3318ec02f8e1/blake3-1.0.8-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:0eab3318ec02f8e16fe549244791ace2ada2c259332f0c77ab22cf94dfff7130" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a33/b9a1fb6d1d559/blake3-1.0.8-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:a33b9a1fb6d1d559a8e0d04b041e99419a6bb771311c774f6ff57ed7119c70ed" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e17/1b169cb7ea618/blake3-1.0.8-cp313-cp313-win32.whl", hash = "sha256:e171b169cb7ea618e362a4dddb7a4d4c173bbc08b9ba41ea3086dd1265530d4f" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/316/8c457255b5d2a/blake3-1.0.8-cp313-cp313-win_amd64.whl", hash = "sha256:3168c457255b5d2a2fc356ba696996fcaff5d38284f968210d54376312107662" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/b4d/672c24dc15ec6/blake3-1.0.8-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:b4d672c24dc15ec617d212a338a4ca14b449829b6072d09c96c63b6e6b621aed" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/1af/0e5a29aa56d4f/blake3-1.0.8-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:1af0e5a29aa56d4fba904452ae784740997440afd477a15e583c38338e641f41" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/ef1/53c5860d5bf1c/blake3-1.0.8-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ef153c5860d5bf1cc71aece69b28097d2a392913eb323d6b52555c875d0439fc" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e8a/e3689f0c7bfa6/blake3-1.0.8-cp313-cp313t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:e8ae3689f0c7bfa6ce6ae45cab110e4c3442125c4c23b28f1f097856de26e4d1" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/3fb/83532f7456dde/blake3-1.0.8-cp313-cp313t-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:3fb83532f7456ddeb68dae1b36e1f7c52f9cb72852ac01159bbcb1a12b0f8be0" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/6ae/7754c7d96e92a/blake3-1.0.8-cp313-cp313t-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:6ae7754c7d96e92a70a52e07c732d594cf9924d780f49fffd3a1e9235e0f5ba7" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4ba/caae75e98dee3/blake3-1.0.8-cp313-cp313t-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:4bacaae75e98dee3b7da6c5ee3b81ee21a3352dd2477d6f1d1dbfd38cdbf158a" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/945/6c829601d7285/blake3-1.0.8-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9456c829601d72852d8ba0af8dae0610f7def1d59f5942efde1e2ef93e8a8b57" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/497/ef8096ec4ac1f/blake3-1.0.8-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:497ef8096ec4ac1ffba9a66152cee3992337cebf8ea434331d8fd9ce5423d227" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/511/133bab85ff60e/blake3-1.0.8-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:511133bab85ff60ed143424ce484d08c60894ff7323f685d7a6095f43f0c85c3" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/9c9/fbdacfdeb68f7/blake3-1.0.8-cp313-cp313t-win32.whl", hash = "sha256:9c9fbdacfdeb68f7ca53bb5a7a5a593ec996eaf21155ad5b08d35e6f97e60877" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/3ce/c94ed5676821c/blake3-1.0.8-cp313-cp313t-win_amd64.whl", hash = "sha256:3cec94ed5676821cf371e9c9d25a41b4f3ebdb5724719b31b2749653b7cc1dfa" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/2c3/3dac2c6112bc2/blake3-1.0.8-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:2c33dac2c6112bc23f961a7ca305c7e34702c8177040eb98d0389d13a347b9e1" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/c44/5eff665d21c3b/blake3-1.0.8-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:c445eff665d21c3b3b44f864f849a2225b1164c08654beb23224a02f087b7ff1" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a47/939f04b89c5c6/blake3-1.0.8-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a47939f04b89c5c6ff1e51e883e5efab1ea1bf01a02f4d208d216dddd63d0dd8" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/73e/0b4fa25f6e307/blake3-1.0.8-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:73e0b4fa25f6e3078526a592fb38fca85ef204fd02eced6731e1cdd9396552d4" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4b0/543c57eb9d6da/blake3-1.0.8-cp314-cp314-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4b0543c57eb9d6dac9d4bced63e9f7f7b546886ac04cec8da3c3d9c8f30cbbb7" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/ed9/72ebd553c0c25/blake3-1.0.8-cp314-cp314-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:ed972ebd553c0c25363459e9fc71a38c045d8419e365b59acd8cd791eff13981" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/3ba/fdec95dfffa3f/blake3-1.0.8-cp314-cp314-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:3bafdec95dfffa3f6571e529644744e280337df15ddd9728f224ba70c5779b23" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/2d7/8f06f3fb838b3/blake3-1.0.8-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2d78f06f3fb838b34c330e2987090376145cbe5944d8608a0c4779c779618f7b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/dd0/3ff08d1b6e4fd/blake3-1.0.8-cp314-cp314-musllinux_1_1_aarch64.whl", hash = "sha256:dd03ff08d1b6e4fdda1cd03826f971ae8966ef6f683a8c68aa27fb21904b5aa9" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4e0/2a3c499e35bf5/blake3-1.0.8-cp314-cp314-musllinux_1_1_x86_64.whl", hash = "sha256:4e02a3c499e35bf51fc15b2738aca1a76410804c877bcd914752cac4f71f052a" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a58/5357d5d8774aa/blake3-1.0.8-cp314-cp314-win32.whl", hash = "sha256:a585357d5d8774aad9ffc12435de457f9e35cde55e0dc8bc43ab590a6929e59f" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/9ab/5998e2abd9754/blake3-1.0.8-cp314-cp314-win_amd64.whl", hash = "sha256:9ab5998e2abd9754819753bc2f1cf3edf82d95402bff46aeef45ed392a5468bf" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e2d/f12f295f95a80/blake3-1.0.8-cp314-cp314t-macosx_10_12_x86_64.whl", hash = "sha256:e2df12f295f95a804338bd300e8fad4a6f54fd49bd4d9c5893855a230b5188a8" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/633/79be58438878e/blake3-1.0.8-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:63379be58438878eeb76ebe4f0efbeaabf42b79f2cff23b6126b7991588ced67" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/88d/527c247f9609d/blake3-1.0.8-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:88d527c247f9609dc1d45a08fd243e39f0d5300d54c57e048de24d4fa9240ebb" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/506/a47897a11ebe8/blake3-1.0.8-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:506a47897a11ebe8f3cdeb52f1365d6a2f83959e98ccb0c830f8f73277d4d358" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e51/22a61b3b004bb/blake3-1.0.8-cp314-cp314t-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e5122a61b3b004bbbd979bdf83a3aaab432da3e2a842d7ddf1c273f2503b4884" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/017/1e85d56dec121/blake3-1.0.8-cp314-cp314t-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:0171e85d56dec1219abdae5f49a0ed12cb3f86a454c29160a64fd8a8166bba37" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/003/f61e8c41dd993/blake3-1.0.8-cp314-cp314t-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:003f61e8c41dd9931edddf1cc6a1bb680fb2ac0ad15493ef4a1df9adc59ce9df" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/d2c/3151955efb09b/blake3-1.0.8-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d2c3151955efb09ba58cd3e1263521e15e9e3866a40d6bd3556d86fc968e8f95" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/5eb/25bca3cee2e0d/blake3-1.0.8-cp314-cp314t-musllinux_1_1_aarch64.whl", hash = "sha256:5eb25bca3cee2e0dd746a214784fb36be6a43640c01c55b6b4e26196e72d076c" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/ab4/e1dea4fa85794/blake3-1.0.8-cp314-cp314t-musllinux_1_1_x86_64.whl", hash = "sha256:ab4e1dea4fa857944944db78e8f20d99ee2e16b2dea5a14f514fb0607753ac83" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/67f/1bc11bf59464e/blake3-1.0.8-cp314-cp314t-win32.whl", hash = "sha256:67f1bc11bf59464ef092488c707b13dd4e872db36e25c453dfb6e0c7498df9f1" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/421/b99cdf1ff2d1b/blake3-1.0.8-cp314-cp314t-win_amd64.whl", hash = "sha256:421b99cdf1ff2d1bf703bc56c454f4b286fce68454dd8711abbcb5a0df90c19a" },
+]
+
+[[package]]
+name = "click"
+version = "8.3.1"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/12f/f4785d337a1bb/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/981/153a64e25f12d/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6" },
+]
+
+[[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/086/95f5cb7ed6e05/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4f1/d9991f5acc0ca/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6" },
+]
+
+[[package]]
+name = "defusedxml"
+version = "0.7.1"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/1bb/3032db185915b/defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a35/2e7e428770286/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61" },
+]
+
+[[package]]
+name = "iniconfig"
+version = "2.3.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/c76/315c77db06865/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/f63/1c04d2c48c52b/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12" },
+]
+
+[[package]]
+name = "markdown-it-py"
+version = "4.0.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "mdurl" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/cb0/a2b4aa34f932c/markdown_it_py-4.0.0.tar.gz", hash = "sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/873/27c59b172c501/markdown_it_py-4.0.0-py3-none-any.whl", hash = "sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147" },
+]
+
+[[package]]
+name = "mdurl"
+version = "0.1.2"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/bb4/13d29f5eea38f/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/840/08a41e51615a4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8" },
+]
+
+[[package]]
+name = "msgpack"
+version = "1.1.2"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/3b6/0763c1373dd60/msgpack-1.1.2.tar.gz", hash = "sha256:3b60763c1373dd60f398488069bcdc703cd08a711477b5d480eecc9f9626f47e" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/70a/0dff9d1f8da25/msgpack-1.1.2-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:70a0dff9d1f8da25179ffcf880e10cf1aad55fdb63cd59c9a49a1b82290062aa" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/446/abdd8b94b55c8/msgpack-1.1.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:446abdd8b94b55c800ac34b102dffd2f6aa0ce643c55dfc017ad89347db3dbdb" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/c63/eea553c69ab05/msgpack-1.1.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c63eea553c69ab05b6747901b97d620bb2a690633c77f23feb0c6a947a8a7b8f" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/372/839311ccf6bda/msgpack-1.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:372839311ccf6bdaf39b00b61288e0557916c3729529b301c52c2d88842add42" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/292/9af52106ca73f/msgpack-1.1.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:2929af52106ca73fcb28576218476ffbb531a036c2adbcf54a3664de124303e9" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/be5/2a8fc79e45b03/msgpack-1.1.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:be52a8fc79e45b0364210eef5234a7cf8d330836d0a64dfbb878efa903d84620" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/1ff/f3d825d7859ac/msgpack-1.1.2-cp312-cp312-win32.whl", hash = "sha256:1fff3d825d7859ac888b0fbda39a42d59193543920eda9d9bea44d958a878029" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/1de/460f0403172cf/msgpack-1.1.2-cp312-cp312-win_amd64.whl", hash = "sha256:1de460f0403172cff81169a30b9a92b260cb809c4cb7e2fc79ae8d0510c78b6b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/be5/980f3ee0e6bd4/msgpack-1.1.2-cp312-cp312-win_arm64.whl", hash = "sha256:be5980f3ee0e6bd44f3a9e9dea01054f175b50c3e6cdb692bc9424c0bbb8bf69" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/4ef/d7b5979ccb539/msgpack-1.1.2-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:4efd7b5979ccb539c221a4c4e16aac1a533efc97f3b759bb5a5ac9f6d10383bf" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/42e/efe2c3e2af97e/msgpack-1.1.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:42eefe2c3e2af97ed470eec850facbe1b5ad1d6eacdbadc42ec98e7dcf68b4b7" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/1fd/f7d83102bf09e/msgpack-1.1.2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1fdf7d83102bf09e7ce3357de96c59b627395352a4024f6e2458501f158bf999" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/fac/4be746328f90c/msgpack-1.1.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:fac4be746328f90caa3cd4bc67e6fe36ca2bf61d5c6eb6d895b6527e3f05071e" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/fff/ee09044073e69/msgpack-1.1.2-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:fffee09044073e69f2bad787071aeec727183e7580443dfeb8556cbf1978d162" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/592/8604de9b032bc/msgpack-1.1.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:5928604de9b032bc17f5099496417f113c45bc6bc21b5c6920caf34b3c428794" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a77/87d353595c7c7/msgpack-1.1.2-cp313-cp313-win32.whl", hash = "sha256:a7787d353595c7c7e145e2331abf8b7ff1e6673a6b974ded96e6d4ec09f00c8c" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a46/5f0dceb8e13a4/msgpack-1.1.2-cp313-cp313-win_amd64.whl", hash = "sha256:a465f0dceb8e13a487e54c07d04ae3ba131c7c5b95e2612596eafde1dccf64a9" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e69/b39f8c0aa5ec2/msgpack-1.1.2-cp313-cp313-win_arm64.whl", hash = "sha256:e69b39f8c0aa5ec24b57737ebee40be647035158f14ed4b40e6f150077e21a84" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e23/ce8d5f7aa6ea6/msgpack-1.1.2-cp314-cp314-macosx_10_13_x86_64.whl", hash = "sha256:e23ce8d5f7aa6ea6d2a2b326b4ba46c985dbb204523759984430db7114f8aa00" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/6c1/5b7d74c939ebe/msgpack-1.1.2-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:6c15b7d74c939ebe620dd8e559384be806204d73b4f9356320632d783d1f7939" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/99e/2cb7b9031568a/msgpack-1.1.2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:99e2cb7b9031568a2a5c73aa077180f93dd2e95b4f8d3b8e14a73ae94a9e667e" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/180/759d89a057eab/msgpack-1.1.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:180759d89a057eab503cf62eeec0aa61c4ea1200dee709f3a8e9397dbb3b6931" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/04f/b995247a6e838/msgpack-1.1.2-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:04fb995247a6e83830b62f0b07bf36540c213f6eac8e851166d8d86d83cbd014" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/8e2/2ab046fa7ede9/msgpack-1.1.2-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:8e22ab046fa7ede9e36eeb4cfad44d46450f37bb05d5ec482b02868f451c95e2" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/80a/0ff7d4abf5fec/msgpack-1.1.2-cp314-cp314-win32.whl", hash = "sha256:80a0ff7d4abf5fecb995fcf235d4064b9a9a8a40a3ab80999e6ac1e30b702717" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/9ad/e919fac6a3e72/msgpack-1.1.2-cp314-cp314-win_amd64.whl", hash = "sha256:9ade919fac6a3e7260b7f64cea89df6bec59104987cbea34d34a2fa15d74310b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/594/15c6076b1e30e/msgpack-1.1.2-cp314-cp314-win_arm64.whl", hash = "sha256:59415c6076b1e30e563eb732e23b994a61c159cec44deaf584e5cc1dd662f2af" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/897/c478140877e53/msgpack-1.1.2-cp314-cp314t-macosx_10_13_x86_64.whl", hash = "sha256:897c478140877e5307760b0ea66e0932738879e7aa68144d9b78ea4c8302a84a" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a66/8204fa43e6d02/msgpack-1.1.2-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:a668204fa43e6d02f89dbe79a30b0d67238d9ec4c5bd8a940fc3a004a47b721b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/555/9d03930d3aa0f/msgpack-1.1.2-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5559d03930d3aa0f3aacb4c42c776af1a2ace2611871c84a75afe436695e6245" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/70c/5a7a9fea7f036/msgpack-1.1.2-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:70c5a7a9fea7f036b716191c29047374c10721c389c21e9ffafad04df8c52c90" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/f2c/b069d8b981abc/msgpack-1.1.2-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:f2cb069d8b981abc72b41aea1c580ce92d57c673ec61af4c500153a626cb9e20" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/d62/ce1f483f355f6/msgpack-1.1.2-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:d62ce1f483f355f61adb5433ebfd8868c5f078d1a52d042b0a998682b4fa8c27" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/1d1/418482b1ee984/msgpack-1.1.2-cp314-cp314t-win32.whl", hash = "sha256:1d1418482b1ee984625d88aa9585db570180c286d942da463533b238b98b812b" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/5a4/6bf7e831d0947/msgpack-1.1.2-cp314-cp314t-win_amd64.whl", hash = "sha256:5a46bf7e831d09470ad92dff02b8b1ac92175ca36b087f904a0519857c6be3ff" },
+    { url = "http://192.168.23.97:3141/root/pypi/+f/d99/ef64f349d5ec3/msgpack-1.1.2-cp314-cp314t-win_arm64.whl", hash = "sha256:d99ef64f349d5ec3293688e91486c5fdb925ed03807f64d98d205d2713c60b46" },
+]
+
+[[package]]
+name = "packaging"
+version = "26.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/002/43ae351a25711/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/b36/f1fef9334a558/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529" },
+]
+
+[[package]]
+name = "pluggy"
+version = "1.6.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/7dc/c130b76258d33/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/e92/0276dd6813095/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746" },
+]
+
+[[package]]
+name = "pygments"
+version = "2.19.2"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/636/cb2477cec7f89/pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/865/40386c03d588b/pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b" },
+]
+
+[[package]]
+name = "pytest"
+version = "9.0.2"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/751/86651a92bd896/pytest-9.0.2.tar.gz", hash = "sha256:75186651a92bd89611d1d9fc20f0b4345fd827c41ccd5c299a868a05d70edf11" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/711/ffd45bf766d52/pytest-9.0.2-py3-none-any.whl", hash = "sha256:711ffd45bf766d5264d487b917733b453d917afd2b0ad65223959f59089f875b" },
+]
+
+[[package]]
+name = "python-dateutil"
+version = "2.9.0.post0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/37d/d54208da7e1cd/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/a8b/2bc7bffae2822/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427" },
+]
+
+[[package]]
+name = "rich"
+version = "14.3.3"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "markdown-it-py" },
+    { name = "pygments" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/b8d/aa0b9e4eef54d/rich-14.3.3.tar.gz", hash = "sha256:b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/793/431c1f8619afa/rich-14.3.3-py3-none-any.whl", hash = "sha256:793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d" },
+]
+
+[[package]]
+name = "romtholos"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "defusedxml" },
+    { name = "rscf" },
+    { name = "strictyaml" },
+    { name = "typer" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "defusedxml", specifier = ">=0.7.1" },
+    { name = "rscf", specifier = ">=0.1.0" },
+    { name = "strictyaml", specifier = ">=1.7.3" },
+    { name = "typer", specifier = ">=0.15" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0" }]
+
+[[package]]
+name = "rscf"
+version = "0.1.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "blake3" },
+    { name = "msgpack" },
+]
+sdist = { url = "http://192.168.23.97:3141/kab/private/+f/ff3/1a5245e7a4a02/rscf-0.1.0.tar.gz", hash = "sha256:ff31a5245e7a4a02b08271bb81477e8bf8d2aa2667504f25266d9e01701b78f1" }
+wheels = [
+    { url = "http://192.168.23.97:3141/kab/private/+f/a3c/9e7b731874f9a/rscf-0.1.0-py3-none-any.whl", hash = "sha256:a3c9e7b731874f9a2b508f484bf7ac3f24229f6ad156525d33ace62918792f86" },
+]
+
+[[package]]
+name = "shellingham"
+version = "1.5.4"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/8db/ca0739d487e5b/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/7ec/fff8f2fd72616/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/ff7/0335d468e7eb6/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/472/1f391ed90541f/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274" },
+]
+
+[[package]]
+name = "strictyaml"
+version = "1.7.3"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "python-dateutil" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/22f/854a5fcab42b5/strictyaml-1.7.3.tar.gz", hash = "sha256:22f854a5fcab42b5ddba8030a0e4be51ca89af0267961c8d6cfa86395586c407" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/fb5/c8a4edb43bebb/strictyaml-1.7.3-py3-none-any.whl", hash = "sha256:fb5c8a4edb43bebb765959e420f9b3978d7f1af88c80606c03fb420888f5d1c7" },
+]
+
+[[package]]
+name = "typer"
+version = "0.24.1"
+source = { registry = "http://192.168.23.97:3141/kab/private/+simple/" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "click" },
+    { name = "rich" },
+    { name = "shellingham" },
+]
+sdist = { url = "http://192.168.23.97:3141/root/pypi/+f/e39/b4732d65fbdcd/typer-0.24.1.tar.gz", hash = "sha256:e39b4732d65fbdcde189ae76cf7cd48aeae72919dea1fdfc16593be016256b45" }
+wheels = [
+    { url = "http://192.168.23.97:3141/root/pypi/+f/112/c1f0ce578bfb4/typer-0.24.1-py3-none-any.whl", hash = "sha256:112c1f0ce578bfb4cab9ffdabc68f031416ebcc216536611ba21f04e9aa84c9e" },
+]
