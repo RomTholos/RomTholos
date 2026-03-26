@@ -11,8 +11,17 @@ import strictyaml as sy
 _MODE_TO_SOURCE_TYPE = {
     "read-only": "readonly",
     "read-write": "ingest",
+    "disposal": "disposal",
     "romroot": "romroot",
 }
+
+
+ORPHANED_DIR_NAME = "_orphaned"
+"""Name of the quarantine subdirectory within romroot.
+
+Used by scan.py (exclusion), match.py (orphan detection), execute.py
+(quarantine), and config.py (implicit ingest source).
+"""
 
 
 @dataclass
@@ -20,7 +29,7 @@ class SourceDir:
     """A directory to scan for ROMs."""
 
     path: Path
-    source_type: str = "readonly"  # "romroot" | "ingest" | "readonly"
+    source_type: str = "readonly"  # "romroot" | "ingest" | "readonly" | "disposal"
 
 
 @dataclass
@@ -43,6 +52,7 @@ class CollectorConfig:
     romroot: Path = Path("romroot")
     work_dir: Path = Path("/tmp/romtholos-work")
     db_cache: Path = Path("collector.db")
+    db_backup_dir: Path = Path("backup")  # default: next to db_cache
     sbi_dir: Path | None = None
 
     # Sources (includes implicit romroot sources)
@@ -112,6 +122,7 @@ _CONFIG_SCHEMA = sy.Map({
         sy.Optional("db_cache"): sy.Str(),
         sy.Optional("metadata"): sy.Str(),
         sy.Optional("upstream"): sy.Str(),
+        sy.Optional("db_backup_dir"): sy.Str(),
         sy.Optional("sbi_dir"): sy.Str(),
     }),
     sy.Optional("romroot_overrides"): sy.MapPattern(sy.Str(), sy.Str()),
@@ -173,6 +184,16 @@ def load_config(config_path: Path) -> CollectorConfig:
             )
             romroot_paths_seen.add(override_path)
 
+    # Add _orphaned/ directories as implicit ingest sources.
+    # These are scanned separately from romroot so orphaned files
+    # are discoverable by hash for rescue (re-collection) but not
+    # subject to orphan detection.
+    for rr_path in romroot_paths_seen:
+        orphaned_dir = rr_path / ORPHANED_DIR_NAME
+        implicit_sources.append(
+            SourceDir(path=orphaned_dir, source_type="ingest")
+        )
+
     # Build explicit sources from config
     explicit_sources: list[SourceDir] = []
     for s in sources_data:
@@ -206,11 +227,19 @@ def load_config(config_path: Path) -> CollectorConfig:
     sbi_dir_str = paths.get("sbi_dir")
     sbi_dir = Path(sbi_dir_str) if sbi_dir_str else None
 
+    db_cache = Path(paths.get("db_cache", "collector.db"))
+    db_backup_dir_str = paths.get("db_backup_dir")
+    db_backup_dir = (
+        Path(db_backup_dir_str) if db_backup_dir_str
+        else db_cache.parent / "backup"
+    )
+
     return CollectorConfig(
         selection=Path(paths.get("selection", "selection")),
         romroot=romroot_path,
         work_dir=Path(paths.get("work_dir", "/tmp/romtholos-work")),
-        db_cache=Path(paths.get("db_cache", "collector.db")),
+        db_cache=db_cache,
+        db_backup_dir=db_backup_dir,
         sbi_dir=sbi_dir,
         sources=implicit_sources + explicit_sources,
         default_compression=defaults.get("compression", "zstd-19"),

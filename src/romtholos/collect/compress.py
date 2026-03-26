@@ -572,6 +572,10 @@ def copy_uncompressed(
 #   multi_file: True if the profile can handle multiple input files
 #   append_function: function to add files to existing archive (or None → rebuild)
 #   append_kwargs: extra arguments for the append function
+#   compatible_media: set of media types the profile can handle, or None for any.
+#       Media types: "cd" (CUE/BIN), "dvd" (ISO), "gdi" (GD-ROM), "rom" (everything else).
+#       Used as a safety net — the compression_map declares user intent, this declares
+#       profile capability. The cascade falls back when intent doesn't match capability.
 PROFILES: dict[str, dict] = {
     "zstd-19": {
         "function": compress_zstd,
@@ -579,6 +583,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,  # tar.zst must rebuild
         "append_kwargs": {},
+        "compatible_media": None,
     },
     "zstd-12": {
         "function": compress_zstd,
@@ -586,6 +591,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": None,
     },
     "zstd-3": {
         "function": compress_zstd,
@@ -593,6 +599,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": None,
     },
     "7z-96m": {
         "function": compress_7z,
@@ -600,6 +607,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": append_7z,
         "append_kwargs": {"dict_size": "96m"},
+        "compatible_media": None,
     },
     "7z-16m": {
         "function": compress_7z,
@@ -607,6 +615,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": append_7z,
         "append_kwargs": {"dict_size": "16m"},
+        "compatible_media": None,
     },
     "zip": {
         "function": compress_zip,
@@ -614,6 +623,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": append_zip,
         "append_kwargs": {},
+        "compatible_media": None,
     },
     "torrentzip": {
         "function": compress_torrentzip,
@@ -621,6 +631,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,  # deterministic, must rebuild
         "append_kwargs": {},
+        "compatible_media": None,
     },
     "rvz-zstd-19": {
         "function": convert_dolphin,
@@ -628,6 +639,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": False,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"dvd"},
     },
     "rvz-zstd-5": {
         "function": convert_dolphin,
@@ -635,6 +647,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": False,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"dvd"},
     },
     "rvz-to-iso": {
         "function": convert_dolphin,
@@ -642,6 +655,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": False,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"dvd"},
     },
     "aaru-ps1-zstd": {
         "function": convert_dimg,
@@ -649,6 +663,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-ps1-lzma": {
         "function": convert_dimg,
@@ -656,6 +671,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-ps2cd-zstd": {
         "function": convert_dimg,
@@ -663,6 +679,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-ps2dvd-zstd": {
         "function": convert_dimg,
@@ -670,6 +687,15 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"dvd"},
+    },
+    "aaru-psp-zstd": {
+        "function": convert_dimg,
+        "kwargs": {"system": "psp", "codec": "zstd"},
+        "multi_file": True,
+        "append_function": None,
+        "append_kwargs": {},
+        "compatible_media": {"umd"},
     },
     "aaru-dc-zstd": {
         "function": convert_dimg,
@@ -677,6 +703,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd", "gdi"},
     },
     "aaru-saturn-zstd": {
         "function": convert_dimg,
@@ -684,6 +711,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-megacd-zstd": {
         "function": convert_dimg,
@@ -691,6 +719,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-pce-zstd": {
         "function": convert_dimg,
@@ -698,6 +727,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "aaru-neogeo-zstd": {
         "function": convert_dimg,
@@ -705,6 +735,7 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,
         "append_kwargs": {},
+        "compatible_media": {"cd"},
     },
     "none": {
         "function": copy_uncompressed,
@@ -712,8 +743,21 @@ PROFILES: dict[str, dict] = {
         "multi_file": True,
         "append_function": None,  # directory mode, handled by execute
         "append_kwargs": {},
+        "compatible_media": None,
     },
 }
+
+
+def profile_compatible(profile_name: str, media_type: str) -> bool:
+    """Check if a compression profile can handle the given media type.
+
+    Returns True if the profile accepts any media type (compatible_media is None)
+    or if the media type is in the profile's compatible_media set.
+
+    Raises KeyError if the profile name is unknown.
+    """
+    compat = PROFILES[profile_name]["compatible_media"]
+    return compat is None or media_type in compat
 
 
 _KNOWN_ARCHIVE_EXTENSIONS = (".7z", ".zip", ".zst", ".rvz", ".iso", ".gcz", ".wia", ".aaru")
@@ -775,6 +819,8 @@ def compress(
     profile_name: str,
     inputs: list[Path],
     output: Path,
+    *,
+    verify: bool = False,
 ) -> CompressResult:
     """Compress files using a named profile.
 
@@ -782,6 +828,8 @@ def compress(
         profile_name: Name from PROFILES registry.
         inputs: Files to compress.
         output: Output path (extension added by profile).
+        verify: If True and the profile supports it (aaru/dimg-tool),
+            run the tool's built-in roundtrip verification.
 
     Returns:
         CompressResult with output path and size info.
@@ -792,6 +840,9 @@ def compress(
 
     profile = PROFILES[profile_name]
     func = profile["function"]
-    kwargs = profile["kwargs"]
+    kwargs = dict(profile["kwargs"])
+
+    if verify and func is convert_dimg:
+        kwargs["verify"] = True
 
     return func(inputs, output, **kwargs)

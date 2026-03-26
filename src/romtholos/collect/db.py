@@ -288,16 +288,6 @@ class CacheDB:
         )
         return cur.fetchall()
 
-    def find_archive_content_by_name(
-        self, entry_name: str
-    ) -> list[sqlite3.Row]:
-        """Find archive content entries by filename."""
-        cur = self._conn.execute(
-            "SELECT * FROM archive_contents WHERE entry_name = ?",
-            (entry_name,),
-        )
-        return cur.fetchall()
-
     # --- DAT entries ---
 
     def load_dat(
@@ -429,10 +419,25 @@ class CacheDB:
         self._auto_commit()
 
     def find_in_romroot(
-        self, hash_type: str, hash_value: str
+        self, hash_type: str, hash_value: str,
+        game_name: str = "",
     ) -> sqlite3.Row | None:
-        """Check if a hash already exists in romroot."""
+        """Check if a hash already exists in romroot.
+
+        When game_name is provided, prefers a match from the same game.
+        This prevents cross-matching when multiple games share a ROM hash
+        (e.g. identical silence/pregap tracks on CD games).
+        """
         assert hash_type in HASH_TYPES
+        if game_name:
+            cur = self._conn.execute(
+                f"SELECT * FROM romroot_files WHERE {hash_type} = ? "
+                f"AND game_name = ?",
+                (hash_value, game_name),
+            )
+            row = cur.fetchone()
+            if row:
+                return row
         cur = self._conn.execute(
             f"SELECT * FROM romroot_files WHERE {hash_type} = ?",
             (hash_value,),
@@ -458,6 +463,13 @@ class CacheDB:
             "DELETE FROM romroot_files WHERE path = ?", (path,)
         )
         self._auto_commit()
+
+    def all_romroot_paths(self) -> set[str]:
+        """Return all distinct container paths in romroot_files."""
+        cur = self._conn.execute(
+            "SELECT DISTINCT path FROM romroot_files"
+        )
+        return {row[0] for row in cur.fetchall()}
 
     # --- Stats ---
 
