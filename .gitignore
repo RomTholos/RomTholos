@@ -9,4 +9,8 @@ dist/
 *.db-wal
 CLAUDE.md
 SENSITIVE.md
+WORKFLOW_NOTES.md
 .hg/
+.hgignore
+DESIGN-rendering.md.old
+size-comparison-*.txt

@@ -1,4 +1,4 @@
-# Collector Specification
+# Collect Module Specification
 
 ## Overview
 
@@ -18,21 +18,19 @@ Source types:                     Local SSD:                    NAS/target:
 | Source type | YAML mode | RSCF sidecars | Scan behavior | Writes | Orphan cleanup |
 |-------------|-----------|---------------|---------------|--------|----------------|
 | `romroot` | (implicit) | Yes (written by execute) | Stat-cache → sidecar → hash fallback | Execute writes files + sidecars | `--force-rescan` deletes orphan `.rscf` |
-| `ingest` | `read-write` | Planned (written by scan) | Stat-cache → sidecar → hash fallback | Scan writes sidecars; future: disposal | Scan deletes orphan `.rscf` |
-| `readonly` | `read-only` | No (never writes) | Stat-cache → hash | Never | N/A |
-| `disposal` | (future) | Yes (same as ingest) | Same as ingest | Deletes source after verified collection | Same as ingest |
+| `ingest` | `read-write` | Yes (written by scan) | Stat-cache → sidecar → hash fallback | Scan writes sidecars | Scan deletes orphan `.rscf` |
+| `readonly` | `read-only` | No (never writes) | Stat-cache → sidecar read → hash | Never | N/A |
+| `disposal` | `disposal` | Yes (same as ingest) | Same as ingest | Deletes source after verified collection | Same as ingest |
 
-**Romroot** is automatically added as a source from `paths.romroot` and any `romroot_overrides`. Explicit sources use `mode: read-only` or `mode: read-write`.
+**Romroot** is automatically added as a source from `paths.romroot` and any `romroot_overrides`. Explicit sources use `mode: read-only`, `mode: read-write`, or `mode: disposal`.
 
 **Stat-cache** (all types): if a file's `(path, size, mtime_ns, ctime_ns, inode)` matches the DB from a previous scan, it is skipped entirely — no sidecar read, no hashing. This makes warm-DB scans near-instant regardless of source type.
 
-**RSCF sidecars** (romroot + ingest): sidecars store container metadata and all 5 content hashes. On cold DB (first run or after DB loss), sidecars provide instant hash recovery without re-reading file contents. For romroot, sidecars are written by the execute phase. For ingest, sidecars are written by the scan phase after hashing (planned, not yet implemented).
+**RSCF sidecars** (romroot + ingest + disposal): sidecars store container metadata and all 5 content hashes. On cold DB (first run or after DB loss), sidecars provide instant hash recovery without re-reading file contents. For romroot, sidecars are written by the execute phase. For ingest/disposal, sidecars are written by the scan phase after hashing. Read-only sources can read existing sidecars (e.g. from a previous ingest run) but never write them.
 
 **Orphan sidecar cleanup**: For any source type that writes sidecars, orphaned `.rscf` files (sidecar with no corresponding source file) must be detected and cleaned. Romroot cleans orphans only during `--force-rescan`. Ingest should clean orphans during normal scan (since it owns the directory).
 
-**Disposal** (future): extends ingest with post-collection deletion. A source file may only be deleted when: (1) all its content hashes are verified in romroot, (2) the romroot copy has been BLAKE3-verified after write, (3) the RSCF sidecar is written and verified. This ensures no data loss even on CIFS/network errors.
-
-**Current limitation**: `ingest` and `readonly` have identical scan behavior — ingest does not yet write sidecars. The `source_modes` dict is threaded to `execute_plan()` but not acted upon.
+**Disposal**: extends ingest with post-collection deletion. A source file may only be deleted when ALL conditions are met: (1) content hashes verified in romroot copy, (2) romroot copy BLAKE3-verified after write, (3) RSCF sidecar written in romroot, (4) no other game references the same source file. Shared source archives (containing ROMs for multiple games) are not deleted until all referencing games are collected.
 
 ### Work directory
 
@@ -147,6 +145,19 @@ Plain `.iso` files are NOT treated as archives — they match DATs directly as p
 - `archive_contents`: archive_path, entry_name, entry_size, 5 hashes
 - `romroot_files`: path, system, game_name, rom_name, 5 hashes, rscf_path
 
+### DAT discovery and romroot path
+
+The match phase discovers selection DATs by recursively walking `selection/` for `**/*.dat`. Each DAT's romroot target path is derived from two things:
+
+1. **Folder path**: the DAT file's parent directory relative to `selection/`
+2. **DAT `<name>`**: the `<name>` field from the DAT XML header
+
+Romroot path for a game: `romroot / <relative folder> / <dat name> / <game_name>`.
+
+This allows multiple DATs in the same selection folder (e.g. Redump + BIOS for PS2) — each gets its own romroot subfolder. Two DATs with the same `<name>` in the same folder is a validation error.
+
+Implemented: recursive `**/*.dat` discovery, `dat_folder` threaded through match → execute.
+
 ### Phase 2: Match (pure DB lookups)
 
 No file I/O except reading DAT XML files. All hash comparisons use the DB cache.
@@ -181,6 +192,12 @@ Process the match plan. **Configuration is authoritative** — if the configured
 ```
 existing = find existing archive/directory in romroot (any extension)
 
+if no existing AND game has in_romroot ops:
+    detect relocation (game exists at old path in romroot)
+    if relocation detected:
+        if no new ROMs AND profile matches: RELOCATE (move only, done)
+        else: relocate first, then re-discover and fall through
+
 if no existing:
     if new ROMs available: CREATE
     else: NOTHING (unavailable)
@@ -197,6 +214,8 @@ else:  # profile mismatch — config wins
 
 Archive discovery scans for any file where `strip_archive_extension(name) == game_name`, regardless of extension. This enables transparent profile transitions (e.g., `.zst` → `.7z`).
 
+**Automatic relocation:** When DATs are reorganized in `selection/` (moved to different folders), the romroot target path changes. The execute phase detects games that exist in romroot at a different path than expected and relocates them — pure filesystem move, no repacking. Works for both archive-mode games (single archive file + sidecar) and directory-mode games (game directory with per-file sidecars). Empty parent directories are cleaned up after the move. The `plan` command shows pending relocations. Relocation can combine with other actions: relocate + append (new ROMs available), relocate + recompress (profile changed).
+
 **Execute flow per game:**
 
 ```
@@ -207,7 +226,13 @@ for each game (sorted by system, then name):
     resolve compression profile (compression_map override → system default)
     if aaru profile + partial game: apply threshold + fallback
     find existing archive (any extension) via sidecar scan
+    if not found: detect relocation (game at wrong path in romroot)
     determine action (SKIP / CREATE / APPEND / REBUILD / RECOMPRESS)
+
+    for RELOCATE (pure move):
+        1. move archive/directory + sidecar(s) to target romroot
+        2. update romroot_files in DB (delete old, insert new paths)
+        3. clean up empty parent directories
 
     for action in (CREATE, APPEND, REBUILD, RECOMPRESS):
         1. get ROMs into work_dir (extract via cache, match by hash)
@@ -234,6 +259,8 @@ cleanup extraction cache
 - Extension change (e.g., zstd single `.zst` → multi `.tar.zst`): REBUILD, old file deleted
 - `none` ↔ archive: directory extracted/compressed, old form removed
 
+**Orphan quarantine:** After execute completes, romroot files not claimed by any current DAT are quarantined to `romroot/_orphaned/`, preserving their relative path structure. DB entries are updated with the new path. Orphaned files remain scannable — if a future DAT claims their hashes, the relocation logic moves them back to the correct romroot location automatically.
+
 **Key properties:**
 - Compress to work_dir first, then copy to target — enables meaningful verification
 - Post-write verification compares against hash computed before the copy
@@ -241,6 +268,7 @@ cleanup extraction cache
 - RSCF sidecar tracks both container (compressed) and content (original ROM) hashes
 - Old archives cleaned up after new archive is verified on target
 - Work dir cleaned after each game
+- Files removed from DATs are quarantined, never deleted
 
 ## DB Cache Schema
 
@@ -327,6 +355,7 @@ paths:
   romroot: /data/romtholos/romroot             # implicit romroot source
   work_dir: /tmp/romtholos-work
   db_cache: romtholos.db
+  db_backup_dir: /path/to/db-backup  # optional, default: <db_cache parent>/backup/
 
 # Per-system romroot overrides (also become implicit romroot sources)
 romroot_overrides:
@@ -391,37 +420,90 @@ Priority: gdi > cd > dvd > rom.
 
 **Aaru partial game handling:** Aaru profiles require complete disc images (all tracks). Partial games use the `partial_fallback` profile (e.g. `zstd-12`) instead. Games below `partial_min_ratio` (fraction of available ROMs) are skipped entirely.
 
+**Profile compatibility:** Each profile declares which media types it can handle (`compatible_media`). Generic profiles (zstd, 7z, zip, torrentzip, none) accept any media type. Disc-specific profiles are restricted:
+
+| Profile | Compatible media |
+|---------|-----------------|
+| `rvz-*` | dvd |
+| `aaru-ps1-*` | cd |
+| `aaru-ps2cd-*` | cd |
+| `aaru-ps2dvd-*` | dvd |
+| `aaru-dc-*` | cd, gdi |
+| `aaru-saturn-*` | cd |
+| `aaru-megacd-*` | cd |
+| `aaru-pce-*` | cd |
+| `aaru-neogeo-*` | cd |
+
+When a profile is incompatible with the detected media type, the resolve cascade falls through:
+
+1. `compression_map[media_type]` → check compatible → if not, fall to 2
+2. System default profile → check compatible → if not, fall to 3
+3. Global `defaults.compression` → always a generic profile
+
+This prevents crashes from disc-specific tools (dolphin-tool, dimg-tool) receiving incompatible input (e.g. a BIOS `.bin` file in a GameCube DAT with `rvz-zstd-19` default).
+
+## DB Backup
+
+The collector DB is backed up automatically before every `scan` and `run` invocation. The backup is unconditional — it always runs when the DB exists and is non-empty.
+
+**Cooldown:** If the newest backup is less than 15 minutes old, the backup is skipped. This prevents redundant copies when running `scan` followed by `run`.
+
+**Tiered rotation:** Backups are retained with decreasing granularity:
+
+| Age | Retention | Max files |
+|-----|-----------|-----------|
+| 0–1 hour | every 15 min | ~4 |
+| 1–24 hours | 1 per hour | ~23 |
+| 1–7 days | 1 per day | ~6 |
+| 1 week – 6 months | 1 per week | ~25 |
+| > 6 months | deleted | — |
+
+**Configuration:** `paths.db_backup_dir` sets the backup directory. Default: `<db_cache parent>/backup/`. Point it to a CIFS mount for snapshot coverage.
+
 ## Safety
 
 - Sources are never modified during scan (only romroot with `--force-rescan`)
 - Per-game work subdirs cleaned after each game; extraction cache cleaned after all games
 - Compressed output verified after copy to target (BLAKE3 comparison)
 - Corrupt target files deleted, not left as partial state
-- Archive extraction has zip bomb protection (ratio limit for standard archives, absolute size limit for disc images, depth limit)
+- Archive extraction via external tools (7z for zip/7z/rar, GNU tar for tar variants, dolphin-tool/dimg-tool for disc images). Post-extraction validation: absolute size limit (50 GiB), path containment check, nesting depth limit (3)
 - Single-file decompression streams to disk (no OOM on large files)
 - Mid-download detection prevents recording unstable files
 - DB cache is disposable — rebuild from `romroot/*.rscf` + selection DATs
+- DB automatically backed up before scan/run with tiered rotation
 - Schema auto-migrates on version mismatch (drop+recreate)
+- Post-mortem corruption detection via `collect verify`: re-hashes every romroot
+  archive against its RSCF sidecar. Reports per-ROM recovery status (source
+  available vs lost). Read-only — never modifies files or the database.
+  Exit code 1 on corruption for scripting/monitoring
 
 ## CLI
 
 ```bash
 # Full pipeline: scan, match, execute
-collector run config.yaml
+romtholos collect run config.yaml
 
 # Scan only (populate DB cache)
-collector scan config.yaml
-collector scan config.yaml --force-rescan   # rebuild romroot sidecars
+romtholos collect scan config.yaml
+romtholos collect scan config.yaml --force-rescan   # rebuild romroot sidecars
+romtholos collect scan config.yaml --path /path/to/source/ps3  # scan subfolder only
 
 # Match only (show plan without executing)
-collector plan config.yaml
+romtholos collect plan config.yaml
+
+# Execute only (requires prior scan, re-matches internally)
+romtholos collect execute config.yaml
+romtholos collect execute config.yaml --system "Sony - PlayStation 3"  # single system
+
+# Verify romroot integrity (read-only, exit 1 on corruption)
+romtholos collect verify config.yaml
 
 # Show DB cache status
-collector status config.yaml
+romtholos collect status config.yaml
 ```
 
 ## Known Limitations
 
 - DAT parsing only handles `<game>` elements, not `<machine>` (MAME-style DATs).
-- No `rebuild-cache` or `execute` standalone commands yet.
+- No `rebuild-cache` standalone command yet.
 - Dolphin disc image extraction requires `dolphin-tool` (native binary or Dolphin Emulator flatpak).
