@@ -121,7 +121,7 @@ class TestMediaTypeDetection:
             )
             for name in rom_names
         ]
-        return GamePlan(system="Test", game_name="Test Game", ops=ops)
+        return GamePlan(system="Test", game_name="Test Game", dat_folder=".", ops=ops)
 
     def test_cd_detected_by_cue(self):
         game = self._make_game(["Game.cue", "Game (Track 1).bin", "Game (Track 2).bin"])
@@ -212,6 +212,190 @@ class TestCompressionMap:
                 compression_map={"cd": "aaru-ps2cd-zstd"},
             )
             assert result["processed"] == 0
+
+
+class TestProfileCompatibility:
+    """Test compatible_media declarations and compatibility cascade."""
+
+    def test_generic_profiles_accept_any_media(self):
+        from romtholos.collect.compress import profile_compatible
+        for media in ("cd", "dvd", "gdi", "rom"):
+            assert profile_compatible("zstd-19", media) is True
+            assert profile_compatible("7z-96m", media) is True
+            assert profile_compatible("zip", media) is True
+            assert profile_compatible("none", media) is True
+
+    def test_rvz_only_accepts_dvd(self):
+        from romtholos.collect.compress import profile_compatible
+        assert profile_compatible("rvz-zstd-19", "dvd") is True
+        assert profile_compatible("rvz-zstd-19", "cd") is False
+        assert profile_compatible("rvz-zstd-19", "rom") is False
+        assert profile_compatible("rvz-zstd-19", "gdi") is False
+
+    def test_aaru_ps1_only_accepts_cd(self):
+        from romtholos.collect.compress import profile_compatible
+        assert profile_compatible("aaru-ps1-zstd", "cd") is True
+        assert profile_compatible("aaru-ps1-zstd", "dvd") is False
+        assert profile_compatible("aaru-ps1-zstd", "rom") is False
+
+    def test_aaru_ps2dvd_only_accepts_dvd(self):
+        from romtholos.collect.compress import profile_compatible
+        assert profile_compatible("aaru-ps2dvd-zstd", "dvd") is True
+        assert profile_compatible("aaru-ps2dvd-zstd", "cd") is False
+
+    def test_aaru_dc_accepts_cd_and_gdi(self):
+        from romtholos.collect.compress import profile_compatible
+        assert profile_compatible("aaru-dc-zstd", "cd") is True
+        assert profile_compatible("aaru-dc-zstd", "gdi") is True
+        assert profile_compatible("aaru-dc-zstd", "dvd") is False
+        assert profile_compatible("aaru-dc-zstd", "rom") is False
+
+    def test_all_profiles_declare_compatible_media(self):
+        """Every profile must have a compatible_media key."""
+        for name, profile in PROFILES.items():
+            assert "compatible_media" in profile, (
+                f"Profile {name!r} missing compatible_media declaration"
+            )
+            compat = profile["compatible_media"]
+            assert compat is None or isinstance(compat, set), (
+                f"Profile {name!r}: compatible_media must be None or a set"
+            )
+
+
+class TestProfileResolveCascade:
+    """Test _resolve_profile cascade: map → system → global fallback."""
+
+    def test_compatible_map_entry_used(self):
+        from romtholos.collect.execute import _resolve_profile
+        result = _resolve_profile(
+            "cd", {"cd": "aaru-ps1-zstd"}, "zstd-19", "zstd-19",
+        )
+        assert result == "aaru-ps1-zstd"
+
+    def test_incompatible_map_entry_falls_to_system(self):
+        from romtholos.collect.execute import _resolve_profile
+        # Map says use rvz for CD — rvz can't handle CD, fall to system
+        result = _resolve_profile(
+            "cd", {"cd": "rvz-zstd-19"}, "7z-96m", "zstd-19",
+        )
+        assert result == "7z-96m"
+
+    def test_incompatible_system_falls_to_global(self):
+        from romtholos.collect.execute import _resolve_profile
+        # System default is rvz, media is "rom" — falls to global
+        result = _resolve_profile(
+            "rom", {}, "rvz-zstd-19", "zstd-19",
+        )
+        assert result == "zstd-19"
+
+    def test_no_map_entry_uses_system_default(self):
+        from romtholos.collect.execute import _resolve_profile
+        result = _resolve_profile(
+            "dvd", {}, "rvz-zstd-19", "zstd-19",
+        )
+        assert result == "rvz-zstd-19"
+
+    def test_compatible_system_not_overridden_by_global(self):
+        from romtholos.collect.execute import _resolve_profile
+        # System default is compatible — should not fall to global
+        result = _resolve_profile(
+            "cd", {}, "aaru-ps1-zstd", "zstd-19",
+        )
+        assert result == "aaru-ps1-zstd"
+
+    def test_full_cascade_all_incompatible_uses_global(self):
+        from romtholos.collect.execute import _resolve_profile
+        # Map → rvz (dvd only), system → aaru-ps1 (cd only), media is "rom"
+        result = _resolve_profile(
+            "rom", {"rom": "rvz-zstd-19"}, "aaru-ps1-zstd", "zstd-19",
+        )
+        assert result == "zstd-19"
+
+    def test_gc_bios_scenario(self):
+        """GameCube BIOS .bin in a DAT with rvz system default → fallback."""
+        from romtholos.collect.execute import _resolve_profile
+        result = _resolve_profile(
+            "rom", {}, "rvz-zstd-19", "zstd-19",
+        )
+        assert result == "zstd-19"
+
+    def test_ps2_rom_in_disc_dat_scenario(self):
+        """PS2 DAT with non-disc ROM (BIOS) → aaru incompatible → fallback."""
+        from romtholos.collect.execute import _resolve_profile
+        result = _resolve_profile(
+            "rom", {"cd": "aaru-ps2cd-zstd"}, "aaru-ps2dvd-zstd", "zstd-19",
+        )
+        assert result == "zstd-19"
+
+
+class TestResolveGameCompatibility:
+    """Test that resolve_game uses compatibility cascade end-to-end."""
+
+    def _make_game(self, rom_names: list[str], status: str = "collectable"):
+        from romtholos.collect.match import GamePlan, MatchOp
+        ops = [
+            MatchOp(
+                dat_path="test.dat",
+                system="Test",
+                game_name="Test Game",
+                rom_name=name,
+                rom_size=100,
+                source_path="/fake/source" if status != "unavailable" else None,
+                source_type="readonly" if status != "unavailable" else None,
+                archive_entry=None,
+                status="matched" if status != "unavailable" else "missing",
+            )
+            for name in rom_names
+        ]
+        return GamePlan(system="Test", game_name="Test Game", dat_folder=".", ops=ops)
+
+    def test_rom_media_with_rvz_default_falls_back(self, tmp_path):
+        from rscf import SidecarResolver, StorageMode
+        from romtholos.collect.execute import resolve_game
+
+        game = self._make_game(["bios.bin"])
+        resolver = SidecarResolver(StorageMode.IN_TREE)
+        target = tmp_path / "romroot" / "GC"
+        target.mkdir(parents=True)
+
+        resolved = resolve_game(
+            game, target, "rvz-zstd-19", {}, "", 0.0, resolver,
+            global_fallback="zstd-19",
+        )
+        assert resolved is not None
+        assert resolved.effective_profile == "zstd-19"
+
+    def test_dvd_media_with_rvz_default_stays(self, tmp_path):
+        from rscf import SidecarResolver, StorageMode
+        from romtholos.collect.execute import resolve_game
+
+        game = self._make_game(["game.iso"])
+        resolver = SidecarResolver(StorageMode.IN_TREE)
+        target = tmp_path / "romroot" / "GC"
+        target.mkdir(parents=True)
+
+        resolved = resolve_game(
+            game, target, "rvz-zstd-19", {}, "", 0.0, resolver,
+            global_fallback="zstd-19",
+        )
+        assert resolved is not None
+        assert resolved.effective_profile == "rvz-zstd-19"
+
+    def test_empty_global_fallback_defaults_to_system(self, tmp_path):
+        from rscf import SidecarResolver, StorageMode
+        from romtholos.collect.execute import resolve_game
+
+        game = self._make_game(["game.iso"])
+        resolver = SidecarResolver(StorageMode.IN_TREE)
+        target = tmp_path / "romroot" / "Test"
+        target.mkdir(parents=True)
+
+        # No explicit global_fallback — should use compression_profile
+        resolved = resolve_game(
+            game, target, "rvz-zstd-19", {}, "", 0.0, resolver,
+        )
+        assert resolved is not None
+        assert resolved.effective_profile == "rvz-zstd-19"
 
 
 class TestLimitFlag:
@@ -577,13 +761,14 @@ class TestPartialMinRatio:
         game = GamePlan(
             system="Sega - Mega CD",
             game_name="Sonic CD",
+            dat_folder=".",
             ops=[new_op] + missing_ops,
         )
 
         with CacheDB(db_path) as db:
             result = execute_plan(
                 game_plans=[game],
-                romroot=romroot,
+                romroot=romroot / "Sega - Mega CD",
                 work_dir=work,
                 compression_profile="aaru-ps1-zstd",
                 db=db,
@@ -646,6 +831,7 @@ class TestPartialMinRatio:
         game = GamePlan(
             system="Sega - Mega CD",
             game_name="Test Game",
+            dat_folder=".",
             ops=new_ops + missing_ops,
         )
 
@@ -655,7 +841,7 @@ class TestPartialMinRatio:
             # It will likely fail during processing but won't be skipped
             result = execute_plan(
                 game_plans=[game],
-                romroot=romroot,
+                romroot=romroot / "Sega - Mega CD",
                 work_dir=work,
                 compression_profile="aaru-ps1-zstd",
                 db=db,
