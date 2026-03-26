@@ -13,13 +13,14 @@ from romtholos.collect.extract import (
     ExtractedFile,
     NestingDepthError,
     PathTraversalError,
-    ZipBombError,
+    SizeLimitError,
     extract_recursive,
 )
 
 
 def _make_rom(path: Path, size: int = 1024) -> Path:
     """Create a fake ROM file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"\x00" * size)
     return path
 
@@ -45,6 +46,8 @@ class TestDirectFiles:
 
 
 class TestZipExtraction:
+    """Zip extraction via 7z backend."""
+
     def test_simple_zip(self, tmp_path: Path):
         src = tmp_path / "input"
         src.mkdir()
@@ -74,13 +77,18 @@ class TestZipExtraction:
         names = {r.original_name for r in results}
         assert names == {"track01.bin", "game.cue"}
 
-    def test_path_traversal_rejected(self, tmp_path: Path):
+    def test_path_traversal_contained(self, tmp_path: Path):
+        """7z sanitizes path traversal entries — files stay within target."""
         archive = tmp_path / "evil.zip"
         with zipfile.ZipFile(archive, "w") as zf:
             zf.writestr("../../etc/passwd", "root:x:0:0")
 
-        with pytest.raises(PathTraversalError):
-            extract_recursive(archive, tmp_path / "work")
+        work = tmp_path / "work"
+        results = extract_recursive(archive, work)
+
+        # 7z strips the ../ prefix and extracts safely within target
+        assert len(results) == 1
+        assert results[0].path.resolve().is_relative_to(work.resolve())
 
 
 class TestNestedArchives:
@@ -122,32 +130,25 @@ class TestNestedArchives:
             extract_recursive(current, tmp_path / "work", limits=limits)
 
 
-class TestZipBombProtection:
-    def test_high_ratio_rejected(self, tmp_path: Path):
-        # Create a zip with extreme compression ratio
-        # 1 MiB of zeros compresses to almost nothing
-        archive = tmp_path / "bomb.zip"
-        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("huge.bin", b"\x00" * (10 * 1024 * 1024))  # 10 MiB of zeros
+class TestSizeLimitProtection:
+    def test_size_limit_enforced(self, tmp_path: Path):
+        """Archives exceeding max_total_bytes are rejected."""
+        archive = tmp_path / "big.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("big.bin", b"\x42" * (2 * 1024 * 1024))  # 2 MiB
 
-        # Set a very low ratio limit
-        limits = ExtractionLimits(max_ratio=5.0)
-        with pytest.raises(ZipBombError):
+        limits = ExtractionLimits(max_total_bytes=1 * 1024 * 1024)  # 1 MiB
+        with pytest.raises(SizeLimitError):
             extract_recursive(archive, tmp_path / "work", limits=limits)
 
-    def test_normal_ratio_accepted(self, tmp_path: Path):
-        src = tmp_path / "input"
-        src.mkdir()
-        # Random-ish data that doesn't compress well
-        import os
-        rom = src / "game.gba"
-        rom.write_bytes(os.urandom(4096))
+    def test_within_size_limit(self, tmp_path: Path):
+        """Archives within max_total_bytes succeed."""
+        archive = tmp_path / "ok.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("small.bin", b"\x42" * 1024)
 
-        archive = tmp_path / "game.zip"
-        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(rom, "game.gba")
-
-        results = extract_recursive(archive, tmp_path / "work")
+        limits = ExtractionLimits(max_total_bytes=1 * 1024 * 1024)
+        results = extract_recursive(archive, tmp_path / "work", limits=limits)
         assert len(results) == 1
 
 
@@ -166,6 +167,56 @@ class Test7zExtraction:
         results = extract_recursive(archive, tmp_path / "work")
         assert len(results) == 1
         assert results[0].size == 4096
+
+
+class TestTarExtraction:
+    def test_tar_gz(self, tmp_path: Path):
+        src = tmp_path / "input"
+        src.mkdir()
+        _make_rom(src / "game.bin", 2048)
+
+        archive = tmp_path / "game.tar.gz"
+        subprocess.run(
+            ["tar", "czf", str(archive), "-C", str(src), "game.bin"],
+            check=True,
+        )
+
+        results = extract_recursive(archive, tmp_path / "work")
+        assert len(results) == 1
+        assert results[0].original_name == "game.bin"
+        assert results[0].size == 2048
+
+    def test_tar_zst(self, tmp_path: Path):
+        src = tmp_path / "input"
+        src.mkdir()
+        _make_rom(src / "game.bin", 2048)
+
+        archive = tmp_path / "game.tar.zst"
+        subprocess.run(
+            ["tar", "--zstd", "-cf", str(archive), "-C", str(src), "game.bin"],
+            check=True,
+        )
+
+        results = extract_recursive(archive, tmp_path / "work")
+        assert len(results) == 1
+        assert results[0].original_name == "game.bin"
+
+    def test_plain_tar(self, tmp_path: Path):
+        src = tmp_path / "input"
+        src.mkdir()
+        _make_rom(src / "a.bin", 512)
+        _make_rom(src / "b.bin", 512)
+
+        archive = tmp_path / "games.tar"
+        subprocess.run(
+            ["tar", "cf", str(archive), "-C", str(src), "a.bin", "b.bin"],
+            check=True,
+        )
+
+        results = extract_recursive(archive, tmp_path / "work")
+        assert len(results) == 2
+        names = {r.original_name for r in results}
+        assert names == {"a.bin", "b.bin"}
 
 
 class TestCompressedSingleFile:
@@ -197,3 +248,20 @@ class TestCompressedSingleFile:
         results = extract_recursive(zst, tmp_path / "work")
         assert len(results) == 1
         assert results[0].original_name == "game.bin"
+
+
+class TestPostExtractionValidation:
+    def test_size_limit_on_single_compressed(self, tmp_path: Path):
+        """Single-file decompression enforces size limit mid-stream."""
+        src = tmp_path / "big.bin"
+        src.write_bytes(b"\x00" * (2 * 1024 * 1024))
+
+        zst = tmp_path / "big.bin.zst"
+        subprocess.run(
+            ["zstd", "-o", str(zst), str(src)],
+            capture_output=True, check=True,
+        )
+
+        limits = ExtractionLimits(max_total_bytes=1 * 1024 * 1024)
+        with pytest.raises(SizeLimitError):
+            extract_recursive(zst, tmp_path / "work", limits=limits)
