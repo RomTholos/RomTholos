@@ -6,6 +6,7 @@ import typer
 
 from romtholos import __version__
 from romtholos.collect.cli import app as collect_app
+from romtholos.select.cli import app as select_app
 
 app = typer.Typer(
     name="romtholos",
@@ -13,6 +14,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+app.add_typer(select_app, name="select", help="Filter upstream DATs into selection.")
 app.add_typer(collect_app, name="collect", help="Scan, match, and collect ROMs.")
 
 
