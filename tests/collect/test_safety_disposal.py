@@ -259,6 +259,39 @@ class TestDisposalConditions:
             # All entries tracked — archive should be disposed
             assert not archive.exists()
 
+    def test_duplicate_across_disposal_sources(self, env):
+        """Same ROM in two disposal sources — both disposed in one run.
+
+        Source A and B both contain Game.gba with identical content.
+        After collection from one source, both copies are redundant and
+        should be disposed without requiring a second run.
+        """
+        src_b = env.source.parent / "source_b"
+        src_b.mkdir()
+
+        content = b"DUPLICATE_ROM" * 200
+        rom_a = make_rom(env.source / "Game.gba", content)
+        rom_b = make_rom(src_b / "Game.gba", content)
+        entry = rom_entry(rom_a)
+
+        make_dat(env.selection / "F" / "Sys.dat", "Sys", [
+            {"name": "Game", "roms": [entry]},
+        ])
+
+        with CacheDB(env.db_path) as db:
+            sources = [
+                SourceDir(path=env.source, source_type="disposal"),
+                SourceDir(path=src_b, source_type="disposal"),
+            ]
+            pipeline_run(sources, env.selection, env.romroot, env.work, db)
+
+            # Game collected
+            assert (env.romroot / "F" / "Sys" / "Game.7z").exists()
+
+            # Both disposal copies disposed in one run
+            assert not rom_a.exists(), "Source A not disposed"
+            assert not rom_b.exists(), "Source B not disposed"
+
     def test_second_run_source_already_gone(self, env):
         """Second run with disposal source already deleted doesn't crash."""
         rom = make_rom(env.source / "Game.gba", b"DISPOSE2" * 200)

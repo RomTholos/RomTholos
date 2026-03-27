@@ -1496,10 +1496,11 @@ def execute_plan(
     collected_games: set[str] = set()
 
     # Build source→games map for disposal sources.
-    # For new_ops the source_path already points to the disposal source.
-    # For existing_ops (in_romroot) the source_path points to romroot,
-    # so we look up the hash in scanned_files/archive_contents to find
-    # disposal source copies that should be cleaned up.
+    # For new_ops the source_path directly identifies the collection source.
+    # Hash lookups find ALL disposal copies across all sources (including
+    # duplicates in other disposal dirs that weren't selected by match).
+    has_disposal = any(m == "disposal" for m in source_modes.values())
+
     for game in game_plans:
         game_key = f"{game.system}/{game.game_name}"
         for op in game.new_ops:
@@ -1508,18 +1509,27 @@ def execute_plan(
             source_dir = _source_dir_for_path(op.source_path, source_modes)
             if source_dir is not None and source_modes.get(str(source_dir)) == "disposal":
                 disposal_source_to_games.setdefault(op.source_path, set()).add(game_key)
-        for op in game.existing_ops:
-            if not op.hash_value:
-                continue
-            # Search scanned files for disposal copies of this ROM
-            for row in db.find_by_hash(op.hash_type, op.hash_value):
-                src_dir = _source_dir_for_path(str(row["path"]), source_modes)
-                if src_dir is not None and source_modes.get(str(src_dir)) == "disposal":
-                    disposal_source_to_games.setdefault(str(row["path"]), set()).add(game_key)
-            for row in db.find_archive_content_by_hash(op.hash_type, op.hash_value):
-                src_dir = _source_dir_for_path(str(row["archive_path"]), source_modes)
-                if src_dir is not None and source_modes.get(str(src_dir)) == "disposal":
-                    disposal_source_to_games.setdefault(str(row["archive_path"]), set()).add(game_key)
+
+        # Search for all disposal copies by hash — covers duplicates
+        # across multiple disposal sources and existing romroot ROMs
+        # whose copies linger in disposal dirs.
+        if has_disposal:
+            seen_hashes: set[tuple[str, str]] = set()
+            for op in game.ops:
+                if not op.hash_value:
+                    continue
+                hkey = (op.hash_type, op.hash_value)
+                if hkey in seen_hashes:
+                    continue
+                seen_hashes.add(hkey)
+                for row in db.find_by_hash(op.hash_type, op.hash_value):
+                    src_dir = _source_dir_for_path(str(row["path"]), source_modes)
+                    if src_dir is not None and source_modes.get(str(src_dir)) == "disposal":
+                        disposal_source_to_games.setdefault(str(row["path"]), set()).add(game_key)
+                for row in db.find_archive_content_by_hash(op.hash_type, op.hash_value):
+                    src_dir = _source_dir_for_path(str(row["archive_path"]), source_modes)
+                    if src_dir is not None and source_modes.get(str(src_dir)) == "disposal":
+                        disposal_source_to_games.setdefault(str(row["archive_path"]), set()).add(game_key)
 
     # Reverse index: game_key → source paths to check after that game is collected
     game_to_disposal_sources: dict[str, set[str]] = {}
