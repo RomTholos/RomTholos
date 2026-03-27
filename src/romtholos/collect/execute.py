@@ -448,6 +448,74 @@ class ExistingArchive:
     """True for 'none' profile game directories."""
 
 
+def _build_existing_cache(
+    target_dir: Path,
+    resolver: SidecarResolver,
+) -> dict[str, ExistingArchive]:
+    """Pre-scan target directory to build game_name → ExistingArchive cache.
+
+    Called once per system before the game loop. Replaces per-game
+    _find_existing_archive calls which caused O(n²) directory scans:
+    each of N games listed the same N-file directory.
+    """
+    cache: dict[str, ExistingArchive] = {}
+    if not target_dir.is_dir():
+        return cache
+
+    for entry in target_dir.iterdir():
+        if entry.is_dir():
+            # Game directory (none profile)
+            game_name = entry.name
+            if game_name in cache:
+                continue
+            entries: list[FileEntry] = []
+            for rom_file in sorted(entry.iterdir()):
+                if not rom_file.is_file() or rom_file.suffix == ".rscf":
+                    continue
+                rscf_path = resolver.sidecar_path(rom_file)
+                if rscf_path.exists():
+                    try:
+                        sc = read_sidecar(rscf_path)
+                        entries.extend(sc.files)
+                    except RscfError:
+                        pass
+            if entries:
+                synthetic = Sidecar(
+                    container_blake3="",
+                    container_size=0,
+                    container_mtime_ns=0,
+                    container_ctime_ns=0,
+                    container_inode=0,
+                    renderer="none",
+                    files=entries,
+                )
+                cache[game_name] = ExistingArchive(
+                    path=entry,
+                    sidecar=synthetic,
+                    rscf_path=entry,  # placeholder
+                    is_directory=True,
+                )
+
+        elif entry.is_file() and entry.suffix != ".rscf":
+            game_name = strip_archive_extension(entry.name)
+            if game_name in cache:
+                continue
+            rscf_path = resolver.sidecar_path(entry)
+            if rscf_path.exists():
+                try:
+                    sidecar = read_sidecar(rscf_path)
+                    cache[game_name] = ExistingArchive(
+                        path=entry,
+                        sidecar=sidecar,
+                        rscf_path=rscf_path,
+                        is_directory=False,
+                    )
+                except RscfError:
+                    pass  # corrupt sidecar, skip
+
+    return cache
+
+
 def _find_existing_archive(
     target_dir: Path,
     game_name: str,
@@ -457,6 +525,10 @@ def _find_existing_archive(
 
     Checks files where strip_archive_extension(name) == game_name, plus
     a game directory (none profile). Returns first with a valid sidecar.
+
+    This is the single-game fallback for cases where the pre-built cache
+    is stale (e.g. after relocation). For bulk resolution, use
+    _build_existing_cache instead.
     """
     # Check archive files
     if target_dir.is_dir():
@@ -658,6 +730,7 @@ def resolve_game(
     partial_min_ratio: float,
     resolver: SidecarResolver,
     global_fallback: str = "",
+    existing_cache: dict[str, ExistingArchive] | None = None,
 ) -> ResolvedGame | None:
     """Resolve all per-game state into a deterministic result.
 
@@ -722,8 +795,11 @@ def resolve_game(
                 skip_reason="missing",
             )
 
-    # Find existing archive at target location
-    existing = _find_existing_archive(target_dir, game.game_name, resolver)
+    # Find existing archive at target location (O(1) from pre-built cache)
+    if existing_cache is not None:
+        existing = existing_cache.get(game.game_name)
+    else:
+        existing = _find_existing_archive(target_dir, game.game_name, resolver)
 
     # Detect relocation: game exists elsewhere in romroot
     old_location = None
@@ -1275,32 +1351,38 @@ def _archive_fully_accounted(source_path: str, db: CacheDB) -> bool:
     return True
 
 
-def _dispose_sources(
+def _try_eager_disposal(
+    game_key: str,
+    game_to_sources: dict[str, set[str]],
     source_to_games: dict[str, set[str]],
     collected_games: set[str],
-    source_modes: dict[str, str],
     db: CacheDB,
-) -> int:
-    """Delete disposal source files whose referencing games are all collected.
+    stats: dict[str, int],
+) -> None:
+    """Dispose sources that became eligible after a game was collected.
+
+    Called after each game is added to collected_games. Uses the reverse
+    index to check only sources relevant to this game, avoiding O(all)
+    scans.  Disk space is reclaimed as early as possible — critical for
+    large disc systems where source + romroot cannot coexist.
 
     Only deletes when ALL of these conditions are met:
     1. All games that reference this source file are collected
     2. For archives: every entry inside is accounted for in romroot
        (prevents silent destruction of untracked files in mixed archives)
-
-    Returns count of source files deleted.
     """
-    disposed = 0
+    candidate_sources = game_to_sources.get(game_key)
+    if not candidate_sources:
+        return
 
-    for source_path, game_keys in sorted(source_to_games.items()):
+    for source_path in sorted(candidate_sources):
+        if source_path not in source_to_games:
+            continue  # already disposed by an earlier game
+
+        game_keys = source_to_games[source_path]
+
         # Condition 1: all games referencing this source must be collected
         if not game_keys.issubset(collected_games):
-            uncollected = game_keys - collected_games
-            print(
-                f"  Disposal deferred: {Path(source_path).name} "
-                f"(waiting for {len(uncollected)} game(s))",
-                file=sys.stderr,
-            )
             continue
 
         # Condition 2: all archive entries must be in romroot
@@ -1314,10 +1396,11 @@ def _dispose_sources(
 
         path = Path(source_path)
         if not path.exists():
+            del source_to_games[source_path]
             continue
 
         path.unlink()
-        disposed += 1
+        stats["disposed"] += 1
         print(
             f"  Disposed: {path.name}",
             file=sys.stderr,
@@ -1332,7 +1415,7 @@ def _dispose_sources(
         except Exception:
             pass  # sidecar cleanup is best-effort
 
-    return disposed
+        del source_to_games[source_path]
 
 
 # ---------------------------------------------------------------------------
@@ -1438,6 +1521,17 @@ def execute_plan(
                 if src_dir is not None and source_modes.get(str(src_dir)) == "disposal":
                     disposal_source_to_games.setdefault(str(row["archive_path"]), set()).add(game_key)
 
+    # Reverse index: game_key → source paths to check after that game is collected
+    game_to_disposal_sources: dict[str, set[str]] = {}
+    for src, games in disposal_source_to_games.items():
+        for gk in games:
+            game_to_disposal_sources.setdefault(gk, set()).add(src)
+
+    # Pre-scan romroot directory once for O(1) per-game lookups.
+    # Replaces per-game _find_existing_archive which caused O(n²) I/O.
+    target_dir = _ensure_dir(romroot)
+    existing_cache = _build_existing_cache(target_dir, resolver)
+
     try:
         for game in sorted(game_plans, key=lambda g: (g.system, g.game_name)):
             # --limit N: stop after N games processed
@@ -1445,13 +1539,13 @@ def execute_plan(
                 break
 
             processed_before = stats["processed"]
-            target_dir = _ensure_dir(romroot)
 
             # --- Phase A: Resolve all state ---
             resolved = resolve_game(
                 game, target_dir, compression_profile, compression_map,
                 partial_fallback, partial_min_ratio, resolver,
                 global_fallback=global_fallback,
+                existing_cache=existing_cache,
             )
 
             if resolved is None:
@@ -1511,7 +1605,12 @@ def execute_plan(
             if action == GameAction.SKIP:
                 stats["skipped"] += len(game.ops)
                 # Already in romroot → safe for disposal
-                collected_games.add(f"{game.system}/{game.game_name}")
+                game_key = f"{game.system}/{game.game_name}"
+                collected_games.add(game_key)
+                _try_eager_disposal(
+                    game_key, game_to_disposal_sources,
+                    disposal_source_to_games, collected_games, db, stats,
+                )
                 continue
 
             # Multi-ROM game with single_only profile
@@ -1582,17 +1681,14 @@ def execute_plan(
                     if subdir.exists():
                         shutil.rmtree(subdir)
 
-            # Track successful collections for disposal
+            # Track successful collections and try eager disposal
             if stats["processed"] > processed_before:
                 game_key = f"{game.system}/{game.game_name}"
                 collected_games.add(game_key)
-
-        # --- Disposal: delete source files where all games are collected ---
-        if disposal_source_to_games:
-            disposed = _dispose_sources(
-                disposal_source_to_games, collected_games, source_modes, db,
-            )
-            stats["disposed"] = disposed
+                _try_eager_disposal(
+                    game_key, game_to_disposal_sources,
+                    disposal_source_to_games, collected_games, db, stats,
+                )
 
     finally:
         cache.cleanup()

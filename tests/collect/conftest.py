@@ -131,6 +131,7 @@ def pipeline_run(
         "failed": 0,
         "missing": 0,
         "relocated": 0,
+        "disposed": 0,
     }
 
     for system, dat_folder, ops in sorted(match_results):

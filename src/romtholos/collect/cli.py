@@ -282,9 +282,11 @@ def _execute_and_quarantine(
 
         relocated = result.get('relocated', 0)
         reloc_str = f", {relocated} relocated" if relocated else ""
+        disposed = result.get('disposed', 0)
+        disp_str = f", {disposed} disposed" if disposed else ""
         print(
             f"  Done: {result['processed']} processed, "
-            f"{result['skipped']} skipped{reloc_str}, "
+            f"{result['skipped']} skipped{reloc_str}{disp_str}, "
             f"{result['failed']} failed, {result['missing']} missing",
             file=sys.stderr,
         )
